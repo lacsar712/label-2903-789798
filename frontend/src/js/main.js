@@ -964,3 +964,181 @@ if (overlayRename) {
         if (e.target === overlayRename) closeRenamePresetModal();
     });
 }
+
+// ============ Notification Bell & Panel ============
+
+let notificationPanelOpen = false;
+
+function toggleNotificationPanel() {
+    const panel = document.getElementById('notificationPanel');
+    if (!panel) return;
+    notificationPanelOpen = !notificationPanelOpen;
+    panel.style.display = notificationPanelOpen ? 'block' : 'none';
+    if (notificationPanelOpen) {
+        loadNotifications();
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('notificationBellWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const panel = document.getElementById('notificationPanel');
+        if (panel) {
+            panel.style.display = 'none';
+            notificationPanelOpen = false;
+        }
+    }
+});
+
+async function refreshNotificationBadge() {
+    const badge = document.getElementById('notificationBadge');
+    if (!badge) return;
+    try {
+        const res = await fetch('/api/alert/notifications/unread_count');
+        const data = await res.json();
+        if (data.unread_count > 0) {
+            badge.style.display = 'inline-flex';
+            badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (e) {
+        console.error('Failed to refresh badge:', e);
+    }
+}
+window.refreshNotificationBadge = refreshNotificationBadge;
+
+async function loadNotifications() {
+    const list = document.getElementById('notificationList');
+    if (!list) return;
+    try {
+        const res = await fetch('/api/alert/notifications');
+        const notifications = await res.json();
+        renderNotifications(notifications);
+    } catch (e) {
+        console.error('Failed to load notifications:', e);
+        list.innerHTML = '<div class="notification-empty">加载失败</div>';
+    }
+}
+
+function renderNotifications(notifications) {
+    const list = document.getElementById('notificationList');
+    if (!list) return;
+
+    if (!notifications || notifications.length === 0) {
+        list.innerHTML = '<div class="notification-empty">暂无异动通知</div>';
+        return;
+    }
+
+    list.innerHTML = notifications.map(n => {
+        const snapshot = n.snapshot || {};
+        const periods = snapshot.periods || [];
+        const values = snapshot.values || [];
+        let snapshotHtml = '';
+        if (periods.length > 0 && values.length > 0) {
+            snapshotHtml = `
+                <div class="notification-snapshot">
+                    <div class="snapshot-title">关键数值快照</div>
+                    <div class="snapshot-grid">
+                        ${periods.map((p, i) => `
+                            <div class="snapshot-item">
+                                <span class="snapshot-period">${p}</span>
+                                <span class="snapshot-value">${values[i]}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${snapshot.metric_value !== undefined ? `
+                        <div class="snapshot-metric">
+                            当前值: <strong>${snapshot.metric_value}</strong>
+                            ${snapshot.threshold !== undefined ? ` / 阈值: ${snapshot.threshold}` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        return `
+            <div class="notification-item ${n.is_read ? 'is-read' : 'is-unread'}" data-id="${n.id}">
+                <div class="notification-item-header" onclick="toggleNotificationExpand(${n.id})">
+                    <div class="notification-dot"></div>
+                    <div class="notification-item-content">
+                        <div class="notification-item-title">${n.title}</div>
+                        <div class="notification-item-message">${n.message}</div>
+                        <div class="notification-item-meta">
+                            <span>${n.rule_name}</span>
+                            <span>·</span>
+                            <span>${n.created_at}</span>
+                        </div>
+                    </div>
+                    ${!n.is_read ? `<button class="notification-mark-read" onclick="event.stopPropagation(); markNotificationRead(${n.id})">标记已读</button>` : ''}
+                </div>
+                <div class="notification-expand" id="notification-expand-${n.id}" style="display: none;">
+                    ${snapshotHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleNotificationExpand(id) {
+    const el = document.getElementById(`notification-expand-${id}`);
+    if (!el) return;
+    const isVisible = el.style.display === 'block';
+    el.style.display = isVisible ? 'none' : 'block';
+
+    const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+    if (item && item.classList.contains('is-unread')) {
+        markNotificationRead(id);
+    }
+}
+
+async function markNotificationRead(id) {
+    try {
+        const res = await fetch(`/api/alert/notifications/${id}/read`, {method: 'POST'});
+        if (res.ok) {
+            const item = document.querySelector(`.notification-item[data-id="${id}"]`);
+            if (item) {
+                item.classList.remove('is-unread');
+                item.classList.add('is-read');
+                const btn = item.querySelector('.notification-mark-read');
+                if (btn) btn.remove();
+            }
+            refreshNotificationBadge();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function markAllNotificationsRead() {
+    try {
+        const res = await fetch('/api/alert/notifications/read_all', {method: 'POST'});
+        if (res.ok) {
+            loadNotifications();
+            refreshNotificationBadge();
+            showToast('已全部标记为已读', 'success');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('操作失败', 'danger');
+    }
+}
+
+async function runBackgroundAlertCheck() {
+    try {
+        await fetch('/api/alert/check', {method: 'POST'});
+        refreshNotificationBadge();
+    } catch (e) {
+        console.error('Background check failed:', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('notificationBell')) {
+        refreshNotificationBadge();
+        setInterval(() => {
+            refreshNotificationBadge();
+            runBackgroundAlertCheck();
+        }, 60000);
+    }
+});
+

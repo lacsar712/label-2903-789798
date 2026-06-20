@@ -34,6 +34,7 @@ class ChargingPile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     province = db.Column(db.String(50), nullable=False)
     density = db.Column(db.Float, nullable=False)
+    period = db.Column(db.String(20), nullable=False, default='latest')
 
 class FilterPreset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,3 +44,31 @@ class FilterPreset(db.Model):
     is_public = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
     user = db.relationship('User', backref=db.backref('filter_presets', lazy=True))
+
+class AlertRule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    rule_type = db.Column(db.String(50), nullable=False)
+    dimension = db.Column(db.String(50), nullable=False)
+    target_value = db.Column(db.String(100))
+    metric = db.Column(db.String(50), nullable=False)
+    condition = db.Column(db.String(20), nullable=False)
+    threshold = db.Column(db.Float, nullable=False)
+    consecutive_periods = db.Column(db.Integer, nullable=False, default=1)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    last_checked = db.Column(db.DateTime)
+    user = db.relationship('User', backref=db.backref('alert_rules', lazy=True))
+    notifications = db.relationship('AlertNotification', backref='rule', lazy=True, cascade='all, delete-orphan')
+
+class AlertNotification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    rule_id = db.Column(db.Integer, db.ForeignKey('alert_rule.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    snapshot_json = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    user = db.relationship('User', backref=db.backref('notifications', lazy=True))

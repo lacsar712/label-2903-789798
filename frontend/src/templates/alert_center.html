@@ -1,0 +1,676 @@
+{% extends "base.html" %}
+{% block title %}异动订阅中心{% endblock %}
+{% block content %}
+
+<div class="alert-center-page">
+    <div class="alert-header">
+        <div class="alert-header-left">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px; color: #fbbf24;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <h2>市场异动订阅中心</h2>
+            <p class="alert-subtitle">设定监测规则，系统自动追踪行业脉搏，异常即时推送</p>
+        </div>
+        <div class="alert-header-right">
+            <button class="btn btn-alert-check" onclick="runAlertCheck()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                立即检测
+            </button>
+            <button class="btn btn-alert-add" onclick="openRuleModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                新建规则
+            </button>
+        </div>
+    </div>
+
+    <div class="alert-stats">
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-total">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-label">全部规则</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                </svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value" id="statActive">0</div>
+                <div class="stat-label">运行中</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-alert">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value" id="statAlerts">0</div>
+                <div class="stat-label">未读异动</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rule-list-header">
+        <h3>我的监测规则</h3>
+    </div>
+
+    <div class="rule-list" id="ruleList">
+        <div class="empty-state" id="emptyState">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: rgba(255,255,255,0.2); margin-bottom: 20px;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <p>暂无监测规则</p>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;">点击右上角「新建规则」开始订阅市场异动</p>
+        </div>
+    </div>
+</div>
+
+<div id="ruleModal" class="modal-overlay" style="display: none; z-index: 2500;">
+    <div class="modal modal-large">
+        <h4 id="ruleModalTitle">新建监测规则</h4>
+        <div class="rule-form">
+            <div class="form-group">
+                <label>规则名称</label>
+                <input type="text" id="ruleName" placeholder="例如：特斯拉季度销量异动监测" maxlength="200">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>规则类型</label>
+                    <select id="ruleType" onchange="onRuleTypeChange()">
+                        <option value="sales">销量异动</option>
+                        <option value="charging_pile">充电桩密度异动</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>监测维度</label>
+                    <select id="ruleDimension" onchange="onDimensionChange()">
+                        <option value="brand">品牌维度</option>
+                        <option value="region">区域维度</option>
+                        <option value="brand_region">品牌+区域</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="targetValueSection">
+                <div class="form-row" id="brandRow">
+                    <div class="form-group">
+                        <label>选择品牌</label>
+                        <select id="targetBrand">
+                            <option value="">-- 请选择品牌 --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" id="regionRow" style="display: none;">
+                    <div class="form-group">
+                        <label>选择省份</label>
+                        <select id="targetRegion">
+                            <option value="">-- 请选择省份 --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" id="brandRegionRow" style="display: none;">
+                    <div class="form-group">
+                        <label>省份</label>
+                        <select id="targetRegion2">
+                            <option value="">-- 请选择省份 --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>品牌（可选）</label>
+                        <select id="targetBrand2">
+                            <option value="">全部品牌</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" id="pileRegionRow" style="display: none;">
+                    <div class="form-group">
+                        <label>选择省份</label>
+                        <select id="targetPileRegion">
+                            <option value="">-- 请选择省份 --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>监测指标</label>
+                    <select id="ruleMetric" onchange="onMetricChange()">
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>判定条件</label>
+                    <select id="ruleCondition">
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>阈值</label>
+                    <input type="number" id="ruleThreshold" placeholder="请输入阈值" step="0.01">
+                </div>
+                <div class="form-group" id="consecutiveGroup" style="display: none;">
+                    <label>连续期数</label>
+                    <input type="number" id="ruleConsecutive" placeholder="连续多少期" value="2" min="2">
+                </div>
+            </div>
+            <div class="rule-preview">
+                <div class="preview-label">规则预览</div>
+                <div class="preview-content" id="rulePreview">请填写规则参数...</div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn" style="background: #334155;" onclick="closeRuleModal()">取消</button>
+            <button class="btn" onclick="saveRule()" id="saveRuleBtn">保存规则</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let alertMeta = null;
+let ruleList = [];
+let editingRuleId = null;
+
+function loadAlertMeta() {
+    fetch('/api/alert/meta')
+        .then(r => r.json())
+        .then(data => {
+            alertMeta = data;
+            populateMetaSelects();
+        })
+        .catch(e => console.error('Failed to load meta:', e));
+}
+
+function populateMetaSelects() {
+    if (!alertMeta) return;
+
+    const brandSelects = ['targetBrand', 'targetBrand2'];
+    brandSelects.forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) {
+            sel.innerHTML = id === 'targetBrand2' ? '<option value="">全部品牌</option>' : '<option value="">-- 请选择品牌 --</option>';
+            alertMeta.brands.forEach(b => {
+                sel.innerHTML += `<option value="${b}">${b}</option>`;
+            });
+        }
+    });
+
+    const regionSelects = ['targetRegion', 'targetRegion2', 'targetPileRegion'];
+    regionSelects.forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) {
+            sel.innerHTML = '<option value="">-- 请选择省份 --</option>';
+            alertMeta.provinces.forEach(p => {
+                sel.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+        }
+    });
+
+    updateMetricOptions();
+    updateConditionOptions();
+}
+
+function updateMetricOptions() {
+    const ruleType = document.getElementById('ruleType').value;
+    const metricSel = document.getElementById('ruleMetric');
+    const metrics = alertMeta ? alertMeta.metrics[ruleType] || [] : [];
+    metricSel.innerHTML = metrics.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
+    onMetricChange();
+}
+
+function updateConditionOptions() {
+    const condSel = document.getElementById('ruleCondition');
+    const conditions = alertMeta ? alertMeta.conditions : [];
+    condSel.innerHTML = conditions.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+}
+
+function onRuleTypeChange() {
+    const ruleType = document.getElementById('ruleType').value;
+    const dimSel = document.getElementById('ruleDimension');
+    const brandRow = document.getElementById('brandRow');
+    const regionRow = document.getElementById('regionRow');
+    const brandRegionRow = document.getElementById('brandRegionRow');
+    const pileRegionRow = document.getElementById('pileRegionRow');
+
+    if (ruleType === 'charging_pile') {
+        dimSel.innerHTML = '<option value="province">省份维度</option>';
+        brandRow.style.display = 'none';
+        regionRow.style.display = 'none';
+        brandRegionRow.style.display = 'none';
+        pileRegionRow.style.display = 'flex';
+    } else {
+        dimSel.innerHTML = `
+            <option value="brand">品牌维度</option>
+            <option value="region">区域维度</option>
+            <option value="brand_region">品牌+区域</option>
+        `;
+        pileRegionRow.style.display = 'none';
+        onDimensionChange();
+    }
+    updateMetricOptions();
+    updateRulePreview();
+}
+
+function onDimensionChange() {
+    const dim = document.getElementById('ruleDimension').value;
+    const ruleType = document.getElementById('ruleType').value;
+    const brandRow = document.getElementById('brandRow');
+    const regionRow = document.getElementById('regionRow');
+    const brandRegionRow = document.getElementById('brandRegionRow');
+
+    if (ruleType === 'charging_pile') return;
+
+    brandRow.style.display = dim === 'brand' ? 'flex' : 'none';
+    regionRow.style.display = dim === 'region' ? 'flex' : 'none';
+    brandRegionRow.style.display = dim === 'brand_region' ? 'flex' : 'none';
+    updateRulePreview();
+}
+
+function onMetricChange() {
+    const metric = document.getElementById('ruleMetric').value;
+    const consecGroup = document.getElementById('consecutiveGroup');
+    const condSel = document.getElementById('ruleCondition');
+    const thresholdInput = document.getElementById('ruleThreshold');
+
+    if (metric === 'consecutive_decline') {
+        consecGroup.style.display = 'flex';
+        condSel.value = 'gte';
+        condSel.disabled = true;
+        thresholdInput.value = '2';
+        thresholdInput.disabled = true;
+    } else {
+        consecGroup.style.display = 'none';
+        condSel.disabled = false;
+        thresholdInput.disabled = false;
+    }
+    updateRulePreview();
+}
+
+function updateRulePreview() {
+    const name = document.getElementById('ruleName').value || '未命名规则';
+    const ruleType = document.getElementById('ruleType').value;
+    const dim = document.getElementById('ruleDimension').value;
+    const metric = document.getElementById('ruleMetric').value;
+    const cond = document.getElementById('ruleCondition').value;
+    const threshold = document.getElementById('ruleThreshold').value;
+    const consec = document.getElementById('ruleConsecutive').value;
+
+    let target = '';
+    if (ruleType === 'charging_pile') {
+        target = document.getElementById('targetPileRegion').value;
+    } else if (dim === 'brand') {
+        target = document.getElementById('targetBrand').value;
+    } else if (dim === 'region') {
+        target = document.getElementById('targetRegion').value;
+    } else if (dim === 'brand_region') {
+        const r = document.getElementById('targetRegion2').value;
+        const b = document.getElementById('targetBrand2').value;
+        target = b ? `${r} - ${b}` : r;
+    }
+
+    const metricLabels = {
+        'quantity': '销量',
+        'change_rate': '销量环比变化率',
+        'density': '充电桩密度',
+        'consecutive_decline': '密度连续下滑期数'
+    };
+    const condLabels = {'gt': '大于', 'gte': '大于等于', 'lt': '小于', 'lte': '小于等于', 'eq': '等于'};
+    const unit = metric === 'change_rate' ? '%' : (metric === 'density' ? ' 个/km²' : ' 辆');
+
+    let previewText = `当【${target || '目标'}】的【${metricLabels[metric] || metric}】`;
+    if (metric === 'consecutive_decline') {
+        previewText += `连续【${consec || 'N'}】期下滑时触发告警`;
+    } else {
+        previewText += `【${condLabels[cond] || cond}】 ${threshold || '?'}${unit} 时触发告警`;
+    }
+
+    document.getElementById('rulePreview').textContent = previewText;
+}
+
+function openRuleModal(rule = null) {
+    editingRuleId = rule ? rule.id : null;
+    document.getElementById('ruleModalTitle').textContent = rule ? '编辑监测规则' : '新建监测规则';
+    document.getElementById('saveRuleBtn').textContent = rule ? '更新规则' : '保存规则';
+
+    document.getElementById('ruleName').value = rule ? rule.name : '';
+    document.getElementById('ruleType').value = rule ? rule.rule_type : 'sales';
+    document.getElementById('ruleCondition').value = rule ? rule.condition : 'lt';
+    document.getElementById('ruleThreshold').value = rule ? rule.threshold : '';
+    document.getElementById('ruleConsecutive').value = rule ? rule.consecutive_periods : 2;
+
+    if (!alertMeta) {
+        loadAlertMeta();
+    }
+    setTimeout(() => {
+        onRuleTypeChange();
+        if (rule) {
+            document.getElementById('ruleDimension').value = rule.dimension;
+            onDimensionChange();
+            if (rule.rule_type === 'charging_pile') {
+                document.getElementById('targetPileRegion').value = rule.target_value || '';
+            } else if (rule.dimension === 'brand') {
+                document.getElementById('targetBrand').value = rule.target_value || '';
+            } else if (rule.dimension === 'region') {
+                document.getElementById('targetRegion').value = rule.target_value || '';
+            } else if (rule.dimension === 'brand_region') {
+                const parts = rule.target_value ? rule.target_value.split('|') : ['', ''];
+                document.getElementById('targetRegion2').value = parts[0];
+                document.getElementById('targetBrand2').value = parts[1] || '';
+            }
+            document.getElementById('ruleMetric').value = rule.metric;
+            onMetricChange();
+        }
+        updateRulePreview();
+    }, 100);
+
+    document.getElementById('ruleModal').style.display = 'flex';
+}
+
+function closeRuleModal() {
+    document.getElementById('ruleModal').style.display = 'none';
+    editingRuleId = null;
+}
+
+function getFormTargetValue() {
+    const ruleType = document.getElementById('ruleType').value;
+    const dim = document.getElementById('ruleDimension').value;
+    if (ruleType === 'charging_pile') {
+        return document.getElementById('targetPileRegion').value;
+    } else if (dim === 'brand') {
+        return document.getElementById('targetBrand').value;
+    } else if (dim === 'region') {
+        return document.getElementById('targetRegion').value;
+    } else if (dim === 'brand_region') {
+        const r = document.getElementById('targetRegion2').value;
+        const b = document.getElementById('targetBrand2').value;
+        return b ? `${r}|${b}` : r;
+    }
+    return '';
+}
+
+async function saveRule() {
+    const name = document.getElementById('ruleName').value.trim();
+    if (!name) {
+        showToast('请输入规则名称', 'danger');
+        return;
+    }
+
+    const target = getFormTargetValue();
+    if (!target) {
+        showToast('请选择监测目标', 'danger');
+        return;
+    }
+
+    const threshold = document.getElementById('ruleThreshold').value;
+    if (threshold === '' || threshold === null) {
+        showToast('请输入阈值', 'danger');
+        return;
+    }
+
+    const payload = {
+        name: name,
+        rule_type: document.getElementById('ruleType').value,
+        dimension: document.getElementById('ruleDimension').value,
+        target_value: target,
+        metric: document.getElementById('ruleMetric').value,
+        condition: document.getElementById('ruleCondition').value,
+        threshold: parseFloat(threshold),
+        consecutive_periods: parseInt(document.getElementById('ruleConsecutive').value) || 1
+    };
+
+    try {
+        const url = editingRuleId ? `/api/alert/rules/${editingRuleId}` : '/api/alert/rules';
+        const method = editingRuleId ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            showToast(data.error || '保存失败', 'danger');
+            return;
+        }
+        showToast(editingRuleId ? '规则已更新' : '规则创建成功', 'success');
+        closeRuleModal();
+        await loadRules();
+    } catch (e) {
+        console.error(e);
+        showToast('保存失败，请重试', 'danger');
+    }
+}
+
+async function loadRules() {
+    try {
+        const res = await fetch('/api/alert/rules');
+        ruleList = await res.json();
+        renderRules();
+        updateStats();
+    } catch (e) {
+        console.error('Failed to load rules:', e);
+    }
+}
+
+function getRuleDescription(rule) {
+    const metricLabels = {
+        'quantity': '销量',
+        'change_rate': '销量环比变化率',
+        'density': '充电桩密度',
+        'consecutive_decline': '连续下滑期数'
+    };
+    const condLabels = {'gt': '>', 'gte': '≥', 'lt': '<', 'lte': '≤', 'eq': '='};
+    const unit = rule.metric === 'change_rate' ? '%' : (rule.metric === 'density' ? ' 个/km²' : ' 辆');
+
+    if (rule.metric === 'consecutive_decline') {
+        return `${rule.target_value} - 密度连续${rule.consecutive_periods}期下滑`;
+    }
+    return `${rule.target_value} - ${metricLabels[rule.metric]} ${condLabels[rule.condition]} ${rule.threshold}${unit}`;
+}
+
+function renderRules() {
+    const list = document.getElementById('ruleList');
+    const empty = document.getElementById('emptyState');
+
+    if (ruleList.length === 0) {
+        empty.style.display = 'block';
+        list.querySelectorAll('.rule-card').forEach(e => e.remove());
+        return;
+    }
+    empty.style.display = 'none';
+
+    const typeLabels = {'sales': '销量异动', 'charging_pile': '充电桩异动'};
+    const typeColors = {'sales': '#38bdf8', 'charging_pile': '#10b981'};
+
+    const existing = list.querySelectorAll('.rule-card');
+    existing.forEach(e => e.remove());
+
+    ruleList.forEach(rule => {
+        const card = document.createElement('div');
+        card.className = 'rule-card' + (rule.is_enabled ? '' : ' rule-disabled');
+        card.dataset.ruleId = rule.id;
+        card.innerHTML = `
+            <div class="rule-card-header">
+                <div class="rule-card-title">
+                    <span class="rule-type-badge" style="background: ${typeColors[rule.rule_type]}20; color: ${typeColors[rule.rule_type]}; border-color: ${typeColors[rule.rule_type]}40;">
+                        ${typeLabels[rule.rule_type]}
+                    </span>
+                    <span class="rule-name">${rule.name}</span>
+                </div>
+                <div class="rule-card-actions">
+                    <label class="switch">
+                        <input type="checkbox" ${rule.is_enabled ? 'checked' : ''} data-rule-id="${rule.id}" class="rule-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <button class="icon-btn rule-edit-btn" data-rule-id="${rule.id}" title="编辑">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn icon-btn-danger rule-delete-btn" data-rule-id="${rule.id}" title="删除">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="rule-card-body">
+                <div class="rule-desc">${getRuleDescription(rule)}</div>
+                <div class="rule-meta">
+                    <span class="rule-meta-item">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        创建于 ${rule.created_at}
+                    </span>
+                    ${rule.last_checked ? `<span class="rule-meta-item">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4"/>
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                        </svg>
+                        最近检测 ${rule.last_checked}
+                    </span>` : ''}
+                </div>
+            </div>
+        `;
+        list.appendChild(card);
+    });
+
+    list.querySelectorAll('.rule-toggle').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const id = parseInt(this.dataset.ruleId);
+            toggleRule(id, this);
+        });
+    });
+    list.querySelectorAll('.rule-edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = parseInt(this.dataset.ruleId);
+            const rule = ruleList.find(r => r.id === id);
+            if (rule) openRuleModal(rule);
+        });
+    });
+    list.querySelectorAll('.rule-delete-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = parseInt(this.dataset.ruleId);
+            deleteRule(id);
+        });
+    });
+}
+
+async function toggleRule(id, checkbox) {
+    try {
+        const res = await fetch(`/api/alert/rules/${id}/toggle`, {method: 'POST'});
+        const data = await res.json();
+        if (!res.ok) {
+            showToast(data.error || '操作失败', 'danger');
+            checkbox.checked = !checkbox.checked;
+            return;
+        }
+        showToast(data.is_enabled ? '规则已启用' : '规则已暂停', 'success');
+        await loadRules();
+    } catch (e) {
+        console.error(e);
+        checkbox.checked = !checkbox.checked;
+        showToast('操作失败', 'danger');
+    }
+}
+
+function deleteRule(id) {
+    showModal('删除规则', '确定要删除此监测规则吗？此操作不可恢复。', async () => {
+        try {
+            const res = await fetch(`/api/alert/rules/${id}`, {method: 'DELETE'});
+            if (!res.ok) {
+                const data = await res.json();
+                showToast(data.error || '删除失败', 'danger');
+                return;
+            }
+            showToast('规则已删除', 'success');
+            await loadRules();
+        } catch (e) {
+            console.error(e);
+            showToast('删除失败', 'danger');
+        }
+    });
+}
+
+async function runAlertCheck() {
+    showToast('正在检测所有规则...', 'info');
+    try {
+        const res = await fetch('/api/alert/check', {method: 'POST'});
+        const data = await res.json();
+        if (data.triggered_count > 0) {
+            showToast(`检测完成：发现 ${data.triggered_count} 条异动！`, 'danger');
+        } else {
+            showToast(`检测完成：未发现异常（共检测 ${data.rules_checked} 条规则）`, 'success');
+        }
+        await loadRules();
+        await updateStats();
+        if (window.refreshNotificationBadge) {
+            window.refreshNotificationBadge();
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('检测失败', 'danger');
+    }
+}
+
+async function updateStats() {
+    document.getElementById('statTotal').textContent = ruleList.length;
+    document.getElementById('statActive').textContent = ruleList.filter(r => r.is_enabled).length;
+    try {
+        const res = await fetch('/api/alert/notifications/unread_count');
+        const data = await res.json();
+        document.getElementById('statAlerts').textContent = data.unread_count;
+    } catch (e) {}
+}
+
+['ruleName', 'ruleType', 'ruleDimension', 'targetBrand', 'targetRegion', 'targetRegion2', 'targetBrand2', 'targetPileRegion', 'ruleMetric', 'ruleCondition', 'ruleThreshold', 'ruleConsecutive'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateRulePreview);
+    if (el) el.addEventListener('change', updateRulePreview);
+});
+
+document.getElementById('ruleModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('ruleModal')) closeRuleModal();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeRuleModal();
+    if (e.key === 'Enter' && document.getElementById('ruleModal').style.display === 'flex') {
+        if (e.target.tagName !== 'TEXTAREA') saveRule();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAlertMeta();
+    loadRules();
+});
+</script>
+{% endblock %}

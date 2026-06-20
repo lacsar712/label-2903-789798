@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from app import db, bcrypt
-from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset
+from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset, AlertRule, AlertNotification
 from flask_login import login_user, current_user, logout_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 import random
 import json
+from datetime import datetime
 
 bp = Blueprint('main', __name__)
 
@@ -178,9 +179,26 @@ def get_map_data():
     mode = request.args.get('mode', 'sales') # sales or density
     
     if mode == 'density':
-        piles = ChargingPile.query.all()
+        subq = db.session.query(
+            ChargingPile.province,
+            func.max(ChargingPile.period).label('max_period')
+        ).group_by(ChargingPile.province).subquery()
+
+        piles = db.session.query(ChargingPile).join(
+            subq,
+            (ChargingPile.province == subq.c.province) & (ChargingPile.period == subq.c.max_period)
+        ).all()
+
+        if not piles:
+            piles = ChargingPile.query.all()
+
+        seen = {}
+        for p in piles:
+            if p.province not in seen:
+                seen[p.province] = p.density
+
         return jsonify({
-            'data': [{"name": p.province, "value": p.density} for p in piles],
+            'data': [{"name": prov, "value": dens} for prov, dens in seen.items()],
             'title': '各省份充电桩密度分布'
         })
     else:
@@ -314,11 +332,15 @@ def init_db_data():
                 s = SalesData(car_model_id=car.id, region=p, period=t, quantity=random.randint(100, 1000))
                 db.session.add(s)
     
-    # Populate Charging Pile Data
+    # Populate Charging Pile Data with multiple periods for history
+    pile_periods = ['2023 Q3', '2023 Q4', '2024 Q1']
     for p in provinces:
-        density = round(random.uniform(5.0, 50.0), 1)
-        pile = ChargingPile(province=p, density=density)
-        db.session.add(pile)
+        base_density = round(random.uniform(5.0, 50.0), 1)
+        for i, period in enumerate(pile_periods):
+            variation = round(base_density - i * random.uniform(0.5, 3.0), 1)
+            density = round(max(variation, 1.0), 1)
+            pile = ChargingPile(province=p, density=density, period=period)
+            db.session.add(pile)
         
     db.session.commit()
     
@@ -546,4 +568,399 @@ def toggle_preset_public(preset_id):
         'id': preset.id,
         'is_public': preset.is_public,
         'name': preset.name
+    })
+
+# ============ Market Alert Subscription Center ============
+
+@bp.route("/alert_center")
+@login_required
+def alert_center():
+    return render_template('alert_center.html')
+
+@bp.route("/api/alert/rules", methods=['GET'])
+@login_required
+def list_alert_rules():
+    rules = AlertRule.query.filter_by(user_id=current_user.id).order_by(AlertRule.created_at.desc()).all()
+    return jsonify([{
+        'id': r.id,
+        'name': r.name,
+        'rule_type': r.rule_type,
+        'dimension': r.dimension,
+        'target_value': r.target_value,
+        'metric': r.metric,
+        'condition': r.condition,
+        'threshold': r.threshold,
+        'consecutive_periods': r.consecutive_periods,
+        'is_enabled': r.is_enabled,
+        'created_at': r.created_at.strftime('%Y-%m-%d %H:%M'),
+        'last_checked': r.last_checked.strftime('%Y-%m-%d %H:%M') if r.last_checked else None
+    } for r in rules])
+
+@bp.route("/api/alert/rules", methods=['POST'])
+@login_required
+def create_alert_rule():
+    data = request.json
+    name = data.get('name', '').strip()
+    rule_type = data.get('rule_type')
+    dimension = data.get('dimension')
+    target_value = data.get('target_value')
+    metric = data.get('metric')
+    condition = data.get('condition')
+    threshold = data.get('threshold')
+    consecutive_periods = data.get('consecutive_periods', 1)
+
+    if not name:
+        return jsonify({'error': '规则名称不能为空'}), 400
+    if not rule_type or not dimension or not metric or not condition or threshold is None:
+        return jsonify({'error': '请填写完整的规则参数'}), 400
+
+    rule = AlertRule(
+        user_id=current_user.id,
+        name=name,
+        rule_type=rule_type,
+        dimension=dimension,
+        target_value=target_value,
+        metric=metric,
+        condition=condition,
+        threshold=float(threshold),
+        consecutive_periods=int(consecutive_periods),
+        is_enabled=True
+    )
+    db.session.add(rule)
+    db.session.commit()
+
+    return jsonify({
+        'id': rule.id,
+        'name': rule.name,
+        'rule_type': rule.rule_type,
+        'dimension': rule.dimension,
+        'target_value': rule.target_value,
+        'metric': rule.metric,
+        'condition': rule.condition,
+        'threshold': rule.threshold,
+        'consecutive_periods': rule.consecutive_periods,
+        'is_enabled': rule.is_enabled,
+        'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M')
+    })
+
+@bp.route("/api/alert/rules/<int:rule_id>", methods=['PUT'])
+@login_required
+def update_alert_rule(rule_id):
+    rule = AlertRule.query.get_or_404(rule_id)
+    if rule.user_id != current_user.id:
+        return jsonify({'error': '无权限修改此规则'}), 403
+
+    data = request.json
+    if 'name' in data:
+        name = data['name'].strip()
+        if not name:
+            return jsonify({'error': '规则名称不能为空'}), 400
+        rule.name = name
+    if 'is_enabled' in data:
+        rule.is_enabled = bool(data['is_enabled'])
+    if 'rule_type' in data:
+        rule.rule_type = data['rule_type']
+    if 'dimension' in data:
+        rule.dimension = data['dimension']
+    if 'target_value' in data:
+        rule.target_value = data['target_value']
+    if 'metric' in data:
+        rule.metric = data['metric']
+    if 'condition' in data:
+        rule.condition = data['condition']
+    if 'threshold' in data:
+        rule.threshold = float(data['threshold'])
+    if 'consecutive_periods' in data:
+        rule.consecutive_periods = int(data['consecutive_periods'])
+
+    db.session.commit()
+    return jsonify({
+        'id': rule.id,
+        'name': rule.name,
+        'rule_type': rule.rule_type,
+        'dimension': rule.dimension,
+        'target_value': rule.target_value,
+        'metric': rule.metric,
+        'condition': rule.condition,
+        'threshold': rule.threshold,
+        'consecutive_periods': rule.consecutive_periods,
+        'is_enabled': rule.is_enabled,
+        'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M'),
+        'last_checked': rule.last_checked.strftime('%Y-%m-%d %H:%M') if rule.last_checked else None
+    })
+
+@bp.route("/api/alert/rules/<int:rule_id>", methods=['DELETE'])
+@login_required
+def delete_alert_rule(rule_id):
+    rule = AlertRule.query.get_or_404(rule_id)
+    if rule.user_id != current_user.id:
+        return jsonify({'error': '无权限删除此规则'}), 403
+
+    db.session.delete(rule)
+    db.session.commit()
+    return jsonify({'status': 'deleted'})
+
+@bp.route("/api/alert/rules/<int:rule_id>/toggle", methods=['POST'])
+@login_required
+def toggle_alert_rule(rule_id):
+    rule = AlertRule.query.get_or_404(rule_id)
+    if rule.user_id != current_user.id:
+        return jsonify({'error': '无权限操作此规则'}), 403
+
+    rule.is_enabled = not rule.is_enabled
+    db.session.commit()
+    return jsonify({
+        'id': rule.id,
+        'is_enabled': rule.is_enabled
+    })
+
+# ============ Alert Detection Engine ============
+
+def get_brand_sales_periods(brand):
+    query = db.session.query(
+        SalesData.period,
+        func.sum(SalesData.quantity)
+    ).join(CarModel).filter(CarModel.brand == brand).group_by(SalesData.period).order_by(SalesData.period).all()
+    return [(p[0], int(p[1])) for p in query]
+
+def get_region_brand_sales(region, brand=None):
+    query = db.session.query(
+        SalesData.period,
+        func.sum(SalesData.quantity)
+    ).join(CarModel).filter(SalesData.region.like(f"%{region}%"))
+    if brand:
+        query = query.filter(CarModel.brand == brand)
+    sales = query.group_by(SalesData.period).order_by(SalesData.period).all()
+    return [(p[0], int(p[1])) for p in sales]
+
+def get_province_pile_density_history(province):
+    piles = ChargingPile.query.filter_by(province=province).order_by(ChargingPile.period).all()
+    if piles:
+        distinct_piles = {}
+        for p in piles:
+            distinct_piles[p.period] = float(p.density)
+        return sorted(distinct_piles.items(), key=lambda x: x[0])
+    return []
+
+def calculate_change(values):
+    if len(values) < 2:
+        return None
+    latest = values[-1]
+    previous = values[-2]
+    if previous == 0:
+        return None
+    return ((latest - previous) / previous) * 100
+
+def check_condition(actual, condition, threshold):
+    if condition == 'gt':
+        return actual > threshold
+    elif condition == 'gte':
+        return actual >= threshold
+    elif condition == 'lt':
+        return actual < threshold
+    elif condition == 'lte':
+        return actual <= threshold
+    elif condition == 'eq':
+        return abs(actual - threshold) < 0.001
+    return False
+
+def evaluate_rule(rule):
+    snapshot = {}
+    triggered = False
+    metric_value = None
+    values_series = []
+
+    if rule.rule_type == 'sales':
+        if rule.dimension == 'brand':
+            values_series = get_brand_sales_periods(rule.target_value)
+            snapshot['brand'] = rule.target_value
+        elif rule.dimension == 'region':
+            values_series = get_region_brand_sales(rule.target_value)
+            snapshot['region'] = rule.target_value
+        elif rule.dimension == 'brand_region':
+            parts = rule.target_value.split('|') if rule.target_value else ['', '']
+            values_series = get_region_brand_sales(parts[0], parts[1] if len(parts) > 1 else None)
+            snapshot['region'] = parts[0]
+            snapshot['brand'] = parts[1] if len(parts) > 1 else ''
+
+        snapshot['periods'] = [v[0] for v in values_series]
+        snapshot['values'] = [v[1] for v in values_series]
+
+        if rule.metric == 'quantity':
+            if values_series:
+                metric_value = values_series[-1][1]
+        elif rule.metric == 'change_rate':
+            metric_value = calculate_change([v[1] for v in values_series])
+
+    elif rule.rule_type == 'charging_pile':
+        values_series = get_province_pile_density_history(rule.target_value)
+        snapshot['province'] = rule.target_value
+        snapshot['periods'] = [v[0] for v in values_series]
+        snapshot['values'] = [v[1] for v in values_series]
+
+        if rule.metric == 'density':
+            if values_series:
+                metric_value = values_series[-1][1]
+        elif rule.metric == 'consecutive_decline':
+            vals = [v[1] for v in values_series]
+            if len(vals) >= rule.consecutive_periods:
+                declines = 0
+                for i in range(len(vals) - rule.consecutive_periods, len(vals) - 1):
+                    if vals[i + 1] < vals[i]:
+                        declines += 1
+                snapshot['consecutive_declines'] = declines
+                if declines >= rule.consecutive_periods - 1:
+                    triggered = True
+                    metric_value = declines
+
+    if metric_value is not None and rule.metric != 'consecutive_decline':
+        triggered = check_condition(metric_value, rule.condition, rule.threshold)
+
+    snapshot['metric_value'] = metric_value
+    snapshot['threshold'] = rule.threshold
+    snapshot['condition'] = rule.condition
+    snapshot['metric'] = rule.metric
+
+    return triggered, snapshot
+
+@bp.route("/api/alert/check", methods=['POST'])
+@login_required
+def check_all_alerts():
+    rules = AlertRule.query.filter_by(user_id=current_user.id, is_enabled=True).all()
+    triggered_count = 0
+    new_notifications = []
+
+    for rule in rules:
+        try:
+            triggered, snapshot = evaluate_rule(rule)
+            rule.last_checked = datetime.now()
+
+            if triggered:
+                metric_desc = {
+                    'quantity': '销量',
+                    'change_rate': '销量环比变化率',
+                    'density': '充电桩密度',
+                    'consecutive_decline': '连续下滑期数'
+                }.get(rule.metric, rule.metric)
+
+                condition_desc = {
+                    'gt': '大于',
+                    'gte': '大于等于',
+                    'lt': '小于',
+                    'lte': '小于等于',
+                    'eq': '等于'
+                }.get(rule.condition, rule.condition)
+
+                unit = '%' if rule.metric == 'change_rate' else ('个/km²' if rule.metric == 'density' else '辆')
+                value_display = f"{snapshot.get('metric_value', 'N/A')}{unit}" if snapshot.get('metric_value') is not None else 'N/A'
+
+                title = f"异动警报：{rule.name}"
+                message = f"{rule.target_value or ''} 的{metric_desc}为{value_display}，{condition_desc}阈值 {rule.threshold}{unit}，已触发监测规则。"
+
+                existing = AlertNotification.query.filter_by(
+                    user_id=current_user.id,
+                    rule_id=rule.id,
+                    is_read=False
+                ).order_by(AlertNotification.created_at.desc()).first()
+
+                should_create = True
+                if existing:
+                    from datetime import timedelta
+                    if datetime.now() - existing.created_at < timedelta(hours=1):
+                        should_create = False
+
+                if should_create:
+                    notification = AlertNotification(
+                        user_id=current_user.id,
+                        rule_id=rule.id,
+                        title=title,
+                        message=message,
+                        snapshot_json=json.dumps(snapshot, ensure_ascii=False)
+                    )
+                    db.session.add(notification)
+                    new_notifications.append(notification)
+                    triggered_count += 1
+
+        except Exception as e:
+            print(f"Error checking rule {rule.id}: {e}")
+            continue
+
+    db.session.commit()
+
+    return jsonify({
+        'triggered_count': triggered_count,
+        'rules_checked': len(rules)
+    })
+
+# ============ Alert Notifications ============
+
+@bp.route("/api/alert/notifications", methods=['GET'])
+@login_required
+def list_notifications():
+    only_unread = request.args.get('unread', '0') == '1'
+    query = AlertNotification.query.filter_by(user_id=current_user.id)
+    if only_unread:
+        query = query.filter_by(is_read=False)
+    notifications = query.order_by(AlertNotification.created_at.desc()).limit(50).all()
+
+    return jsonify([{
+        'id': n.id,
+        'rule_id': n.rule_id,
+        'rule_name': n.rule.name if n.rule else '',
+        'title': n.title,
+        'message': n.message,
+        'snapshot': json.loads(n.snapshot_json) if n.snapshot_json else {},
+        'is_read': n.is_read,
+        'created_at': n.created_at.strftime('%Y-%m-%d %H:%M')
+    } for n in notifications])
+
+@bp.route("/api/alert/notifications/unread_count", methods=['GET'])
+@login_required
+def unread_notification_count():
+    count = AlertNotification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({'unread_count': count})
+
+@bp.route("/api/alert/notifications/<int:notif_id>/read", methods=['POST'])
+@login_required
+def mark_notification_read(notif_id):
+    notification = AlertNotification.query.get_or_404(notif_id)
+    if notification.user_id != current_user.id:
+        return jsonify({'error': '无权限操作'}), 403
+
+    notification.is_read = True
+    db.session.commit()
+    return jsonify({'status': 'ok', 'is_read': True})
+
+@bp.route("/api/alert/notifications/read_all", methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    AlertNotification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'status': 'ok'})
+
+@bp.route("/api/alert/meta", methods=['GET'])
+@login_required
+def get_alert_meta():
+    brands = [b[0] for b in db.session.query(CarModel.brand).distinct().all()]
+    provinces = [p[0] for p in db.session.query(ChargingPile.province).distinct().all()]
+    return jsonify({
+        'brands': brands,
+        'provinces': provinces,
+        'metrics': {
+            'sales': [
+                {'value': 'quantity', 'label': '销量绝对值'},
+                {'value': 'change_rate', 'label': '环比变化率 (%)'}
+            ],
+            'charging_pile': [
+                {'value': 'density', 'label': '密度绝对值'},
+                {'value': 'consecutive_decline', 'label': '连续下滑期数'}
+            ]
+        },
+        'conditions': [
+            {'value': 'gt', 'label': '大于 (>)'},
+            {'value': 'gte', 'label': '大于等于 (≥)'},
+            {'value': 'lt', 'label': '小于 (<)'},
+            {'value': 'lte', 'label': '小于等于 (≤)'},
+            {'value': 'eq', 'label': '等于 (=)'}
+        ]
     })

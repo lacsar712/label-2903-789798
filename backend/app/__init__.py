@@ -9,13 +9,29 @@ login_manager = LoginManager()
 bcrypt = Bcrypt()
 
 def create_app():
-    # Inside Docker, frontend is at /frontend
+    import os
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    frontend_dir = os.path.join(base_dir, 'frontend', 'src')
+    database_dir = os.path.join(base_dir, 'database')
+    
+    in_docker = os.path.exists('/frontend') and os.path.exists('/database')
+    
+    if in_docker:
+        template_folder = '/frontend/src/templates'
+        static_folder = '/frontend/src'
+        database_uri = 'sqlite:////database/nev_data.db'
+    else:
+        template_folder = os.path.join(frontend_dir, 'templates')
+        static_folder = frontend_dir
+        os.makedirs(database_dir, exist_ok=True)
+        database_uri = f'sqlite:///{os.path.join(database_dir, "nev_data.db")}'
+
     app = Flask(__name__, 
-                template_folder='/frontend/src/templates',
-                static_folder='/frontend/src')
+                template_folder=template_folder,
+                static_folder=static_folder)
     
     app.config['SECRET_KEY'] = 'nev_secret_key_2024'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////database/nev_data.db'
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     db.init_app(app)
@@ -29,9 +45,11 @@ def create_app():
 
     from app import models
     with app.app_context():
-        # Ensure database directory exists
-        if not os.path.exists('../database'):
-            os.makedirs('../database')
+        if not in_docker:
+            os.makedirs(database_dir, exist_ok=True)
+        else:
+            if not os.path.exists('../database'):
+                os.makedirs('../database')
         db.create_all()
         
         # Migration: Add has_seen_tour column if it doesn't exist
@@ -44,6 +62,17 @@ def create_app():
                 db.session.commit()
             except Exception as e:
                 print("Migration notice:", e)
+        
+        # Migration: Add period column to ChargingPile if it doesn't exist
+        try:
+            from sqlalchemy import text
+            db.session.execute(text('SELECT period FROM charging_pile LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(text("ALTER TABLE charging_pile ADD COLUMN period VARCHAR(20) NOT NULL DEFAULT 'latest'"))
+                db.session.commit()
+            except Exception as e:
+                print("Migration notice (ChargingPile.period):", e)
         
         # Automatic Admin Creation
         admin = models.User.query.filter_by(username='admin').first()
