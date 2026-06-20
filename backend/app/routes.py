@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from app import db, bcrypt
-from app.models import User, CarModel, SalesData, ChargingPile
+from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset
 from flask_login import login_user, current_user, logout_user, login_required
 from sqlalchemy import func, or_
 import random
+import json
 
 bp = Blueprint('main', __name__)
 
@@ -393,3 +394,156 @@ def mark_tour_seen():
         current_user.has_seen_tour = True
         db.session.commit()
     return jsonify({'status': 'ok', 'has_seen_tour': current_user.has_seen_tour})
+
+# --- Filter Preset APIs ---
+
+@bp.route("/api/filter_presets", methods=['GET'])
+@login_required
+def list_filter_presets():
+    mine = FilterPreset.query.filter_by(user_id=current_user.id).all()
+    public = FilterPreset.query.filter_by(is_public=True).filter(FilterPreset.user_id != current_user.id).all()
+    
+    is_admin = current_user.role == 'admin'
+    
+    result = []
+    for p in mine:
+        result.append({
+            'id': p.id,
+            'name': p.name,
+            'filters': json.loads(p.filters_json),
+            'is_public': p.is_public,
+            'is_mine': True,
+            'owner_name': p.user.username,
+            'can_edit': True,
+            'can_delete': True,
+            'can_toggle_public': is_admin,
+            'created_at': p.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+    for p in public:
+        result.append({
+            'id': p.id,
+            'name': p.name,
+            'filters': json.loads(p.filters_json),
+            'is_public': True,
+            'is_mine': False,
+            'owner_name': p.user.username,
+            'can_edit': False,
+            'can_delete': is_admin,
+            'can_toggle_public': is_admin,
+            'created_at': p.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+    
+    result.sort(key=lambda x: (0 if x['is_mine'] else 1, x['name']))
+    return jsonify(result)
+
+@bp.route("/api/filter_presets", methods=['POST'])
+@login_required
+def create_filter_preset():
+    data = request.json
+    name = data.get('name', '').strip()
+    filters = data.get('filters')
+    
+    if not name:
+        return jsonify({'error': '方案名称不能为空'}), 400
+    if not filters or not isinstance(filters, dict):
+        return jsonify({'error': '筛选参数无效'}), 400
+    
+    existing = FilterPreset.query.filter_by(user_id=current_user.id, name=name).first()
+    if existing:
+        return jsonify({'error': '您已存在同名方案'}), 400
+    
+    preset = FilterPreset(
+        name=name,
+        user_id=current_user.id,
+        filters_json=json.dumps(filters, ensure_ascii=False),
+        is_public=False
+    )
+    db.session.add(preset)
+    db.session.commit()
+    
+    return jsonify({
+        'id': preset.id,
+        'name': preset.name,
+        'filters': json.loads(preset.filters_json),
+        'is_public': False,
+        'is_mine': True,
+        'owner_name': current_user.username,
+        'can_edit': True,
+        'can_delete': True,
+        'can_toggle_public': current_user.role == 'admin',
+        'created_at': preset.created_at.strftime('%Y-%m-%d %H:%M')
+    })
+
+@bp.route("/api/filter_presets/<int:preset_id>", methods=['PUT'])
+@login_required
+def update_filter_preset(preset_id):
+    preset = FilterPreset.query.get_or_404(preset_id)
+    is_admin = current_user.role == 'admin'
+    
+    if preset.user_id != current_user.id and not is_admin:
+        return jsonify({'error': '无权限修改此方案'}), 403
+    
+    data = request.json
+    name = data.get('name')
+    is_public = data.get('is_public')
+    filters = data.get('filters')
+    
+    if name is not None:
+        name = name.strip()
+        if not name:
+            return jsonify({'error': '方案名称不能为空'}), 400
+        preset.name = name
+    
+    if is_public is not None:
+        if not is_admin:
+            return jsonify({'error': '仅管理员可标记公共方案'}), 403
+        preset.is_public = bool(is_public)
+    
+    if filters is not None:
+        if not isinstance(filters, dict):
+            return jsonify({'error': '筛选参数无效'}), 400
+        preset.filters_json = json.dumps(filters, ensure_ascii=False)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'id': preset.id,
+        'name': preset.name,
+        'filters': json.loads(preset.filters_json),
+        'is_public': preset.is_public,
+        'is_mine': preset.user_id == current_user.id,
+        'owner_name': preset.user.username,
+        'can_edit': preset.user_id == current_user.id,
+        'can_delete': preset.user_id == current_user.id or is_admin,
+        'can_toggle_public': is_admin,
+        'created_at': preset.created_at.strftime('%Y-%m-%d %H:%M')
+    })
+
+@bp.route("/api/filter_presets/<int:preset_id>", methods=['DELETE'])
+@login_required
+def delete_filter_preset(preset_id):
+    preset = FilterPreset.query.get_or_404(preset_id)
+    is_admin = current_user.role == 'admin'
+    
+    if preset.user_id != current_user.id and not is_admin:
+        return jsonify({'error': '无权限删除此方案'}), 403
+    
+    db.session.delete(preset)
+    db.session.commit()
+    return jsonify({'status': 'deleted'})
+
+@bp.route("/api/filter_presets/<int:preset_id>/toggle_public", methods=['POST'])
+@login_required
+def toggle_preset_public(preset_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': '仅管理员可操作'}), 403
+    
+    preset = FilterPreset.query.get_or_404(preset_id)
+    preset.is_public = not preset.is_public
+    db.session.commit()
+    
+    return jsonify({
+        'id': preset.id,
+        'is_public': preset.is_public,
+        'name': preset.name
+    })

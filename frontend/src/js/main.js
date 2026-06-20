@@ -530,3 +530,437 @@ window.addEventListener('load', () => {
         }
     }
 });
+
+// ============ Filter Preset Management ============
+
+let presetList = [];
+let selectedPresetId = null;
+let isEditMode = false;
+let editingPresetId = null;
+
+function getCurrentFilters() {
+    const brand = document.getElementById('brandFilter').value;
+    const city = document.getElementById('cityFilter').value;
+    const priceMin = document.getElementById('priceMin').value;
+    const priceMax = document.getElementById('priceMax').value;
+    const rangeMin = document.getElementById('rangeMin').value;
+    const categories = Array.from(document.querySelectorAll('.cat-filter:checked')).map(cb => cb.value);
+    const sortField = document.getElementById('sortField').value;
+    const sortOrder = document.getElementById('sortOrder').value;
+    const mapMode = document.getElementById('mapMode').value;
+
+    return {
+        brand,
+        city,
+        priceMin,
+        priceMax,
+        rangeMin,
+        categories,
+        sortField,
+        sortOrder,
+        mapMode
+    };
+}
+
+function applyFilters(filters) {
+    if (!filters) return;
+
+    document.getElementById('brandFilter').value = filters.brand || '';
+    document.getElementById('cityFilter').value = filters.city || '北京';
+    document.getElementById('priceMin').value = filters.priceMin || '';
+    document.getElementById('priceMax').value = filters.priceMax || '';
+    document.getElementById('rangeMin').value = filters.rangeMin || '';
+    document.getElementById('sortField').value = filters.sortField || 'model_name';
+    document.getElementById('sortOrder').value = filters.sortOrder || 'asc';
+    document.getElementById('mapMode').value = filters.mapMode || 'sales';
+
+    const allCategories = ['纯电', '混动'];
+    allCategories.forEach(cat => {
+        const cb = document.querySelector(`.cat-filter[value="${cat}"]`);
+        if (cb) cb.checked = filters.categories ? filters.categories.includes(cat) : true;
+    });
+
+    refreshCharts();
+}
+
+async function loadPresetList() {
+    try {
+        const res = await fetch('/api/filter_presets');
+        if (!res.ok) throw new Error('加载失败');
+        presetList = await res.json();
+        renderPresetDropdown();
+    } catch (e) {
+        console.error('Failed to load presets:', e);
+        showToast('加载方案列表失败', 'danger');
+    }
+}
+
+function renderPresetDropdown() {
+    const select = document.getElementById('presetSelect');
+    if (!select) return;
+
+    const prevValue = select.value;
+    select.innerHTML = '<option value="">-- 选择已保存方案 --</option>';
+
+    const minePresets = presetList.filter(p => p.is_mine);
+    const publicPresets = presetList.filter(p => !p.is_mine && p.is_public);
+
+    if (minePresets.length > 0) {
+        const groupMine = document.createElement('optgroup');
+        groupMine.label = '★ 我的方案';
+        minePresets.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            let name = p.name;
+            if (p.is_public) name += ' [公共]';
+            opt.textContent = name;
+            if (p.is_public) {
+                opt.style.color = '#fbbf24';
+                opt.style.fontWeight = '600';
+            }
+            groupMine.appendChild(opt);
+        });
+        select.appendChild(groupMine);
+    }
+
+    if (publicPresets.length > 0) {
+        const groupPublic = document.createElement('optgroup');
+        groupPublic.label = '🌐 公共方案（团队共享）';
+        publicPresets.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `${p.name}  (创建者: ${p.owner_name})`;
+            opt.style.color = '#34d399';
+            opt.style.fontWeight = '600';
+            groupPublic.appendChild(opt);
+        });
+        select.appendChild(groupPublic);
+    }
+
+    select.value = prevValue;
+    if (select.value) {
+        onPresetSelectChange(select);
+    } else {
+        updatePresetButtons(null);
+    }
+}
+
+function getPresetById(id) {
+    return presetList.find(p => p.id === parseInt(id));
+}
+
+function onPresetSelectChange(select) {
+    const id = select.value;
+    selectedPresetId = id ? parseInt(id) : null;
+    const preset = selectedPresetId ? getPresetById(selectedPresetId) : null;
+    updatePresetButtons(preset);
+    updatePresetInfo(preset);
+}
+
+function updatePresetButtons(preset) {
+    const btnApply = document.getElementById('btnApplyPreset');
+    const btnEdit = document.getElementById('btnEditPreset');
+    const btnDelete = document.getElementById('btnDeletePreset');
+    const btnTogglePublic = document.getElementById('btnTogglePublic');
+    const btnTogglePublicText = document.getElementById('btnTogglePublicText');
+
+    if (btnApply) btnApply.disabled = !preset;
+    if (btnEdit) btnEdit.disabled = !preset || !preset.can_edit;
+    if (btnDelete) btnDelete.disabled = !preset || !preset.can_delete;
+
+    if (btnTogglePublic) {
+        btnTogglePublic.disabled = !preset || !preset.can_toggle_public;
+        if (btnTogglePublicText) {
+            btnTogglePublicText.textContent = preset && preset.is_public ? '取消公共' : '标记公共';
+        }
+    }
+}
+
+function updatePresetInfo(preset) {
+    const infoDiv = document.getElementById('presetInfo');
+    const infoContent = document.getElementById('presetInfoContent');
+    if (!infoDiv || !infoContent) return;
+
+    if (!preset) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+
+    infoDiv.style.display = 'block';
+    let tags = [];
+    if (preset.is_mine) tags.push('<span class="preset-tag preset-tag-mine">我的</span>');
+    if (preset.is_public) tags.push('<span class="preset-tag preset-tag-public">公共</span>');
+    tags.push(`<span class="preset-tag preset-tag-owner">创建者: ${preset.owner_name}</span>`);
+    tags.push(`<span class="preset-tag preset-tag-time">${preset.created_at}</span>`);
+
+    infoContent.innerHTML = tags.join(' ');
+}
+
+function openSavePresetModal() {
+    isEditMode = false;
+    editingPresetId = null;
+    document.getElementById('presetModalTitle').textContent = '保存筛选方案';
+    document.getElementById('presetNameInput').value = '';
+    document.getElementById('confirmSavePresetBtn').textContent = '确定保存';
+    document.getElementById('savePresetModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('presetNameInput').focus(), 100);
+}
+
+function closePresetModal() {
+    document.getElementById('savePresetModal').style.display = 'none';
+}
+
+async function confirmSavePreset() {
+    const nameInput = document.getElementById('presetNameInput');
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        showToast('请输入方案名称', 'danger');
+        nameInput.focus();
+        return;
+    }
+
+    const filters = getCurrentFilters();
+
+    try {
+        let res;
+        if (isEditMode && editingPresetId) {
+            res = await fetch(`/api/filter_presets/${editingPresetId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, filters })
+            });
+        } else {
+            res = await fetch('/api/filter_presets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, filters })
+            });
+        }
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast(data.error || '保存失败', 'danger');
+            return;
+        }
+
+        showToast(isEditMode ? '方案已更新' : '方案保存成功', 'success');
+        closePresetModal();
+        await loadPresetList();
+
+        if (data.id) {
+            const select = document.getElementById('presetSelect');
+            if (select) select.value = data.id;
+            selectedPresetId = data.id;
+            onPresetSelectChange(select);
+        }
+    } catch (e) {
+        console.error('Save preset failed:', e);
+        showToast('保存失败，请重试', 'danger');
+    }
+}
+
+function openRenamePresetModal() {
+    if (!selectedPresetId) {
+        showToast('请先选择一个方案', 'danger');
+        return;
+    }
+
+    const preset = getPresetById(selectedPresetId);
+    if (!preset || !preset.can_edit) {
+        showToast('无权限修改此方案', 'danger');
+        return;
+    }
+
+    document.getElementById('renamePresetInput').value = preset.name;
+    document.getElementById('renamePresetModal').style.display = 'flex';
+    setTimeout(() => {
+        const input = document.getElementById('renamePresetInput');
+        input.focus();
+        input.select();
+    }, 100);
+}
+
+function closeRenamePresetModal() {
+    document.getElementById('renamePresetModal').style.display = 'none';
+}
+
+async function confirmRenamePreset() {
+    if (!selectedPresetId) return;
+
+    const input = document.getElementById('renamePresetInput');
+    const newName = input.value.trim();
+
+    if (!newName) {
+        showToast('名称不能为空', 'danger');
+        input.focus();
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/filter_presets/${selectedPresetId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            showToast(data.error || '重命名失败', 'danger');
+            return;
+        }
+
+        showToast('方案已重命名', 'success');
+        closeRenamePresetModal();
+        await loadPresetList();
+
+        const select = document.getElementById('presetSelect');
+        if (select) {
+            select.value = selectedPresetId;
+            onPresetSelectChange(select);
+        }
+    } catch (e) {
+        console.error('Rename preset failed:', e);
+        showToast('重命名失败', 'danger');
+    }
+}
+
+async function deleteSelectedPreset() {
+    if (!selectedPresetId) {
+        showToast('请先选择一个方案', 'danger');
+        return;
+    }
+
+    const preset = getPresetById(selectedPresetId);
+    if (!preset) return;
+
+    if (!preset.can_delete) {
+        showToast('无权限删除此方案', 'danger');
+        return;
+    }
+
+    showModal(
+        '删除方案',
+        `确定要删除方案「${preset.name}」吗？此操作不可恢复。`,
+        async () => {
+            try {
+                const res = await fetch(`/api/filter_presets/${selectedPresetId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    showToast(data.error || '删除失败', 'danger');
+                    return;
+                }
+
+                showToast('方案已删除', 'success');
+                selectedPresetId = null;
+                await loadPresetList();
+            } catch (e) {
+                console.error('Delete preset failed:', e);
+                showToast('删除失败', 'danger');
+            }
+        }
+    );
+}
+
+async function applySelectedPreset() {
+    if (!selectedPresetId) {
+        showToast('请先选择一个方案', 'danger');
+        return;
+    }
+
+    const preset = getPresetById(selectedPresetId);
+    if (!preset) return;
+
+    applyFilters(preset.filters);
+    showToast(`已应用方案「${preset.name}」`, 'success');
+}
+
+async function togglePresetPublic() {
+    if (!selectedPresetId) {
+        showToast('请先选择一个方案', 'danger');
+        return;
+    }
+
+    const preset = getPresetById(selectedPresetId);
+    if (!preset || !preset.can_toggle_public) {
+        showToast('无权限操作', 'danger');
+        return;
+    }
+
+    const action = preset.is_public ? '取消公共标记' : '标记为公共方案';
+    showModal(
+        action,
+        preset.is_public
+            ? `确定要取消方案「${preset.name}」的公共标记吗？其他用户将无法再使用此方案。`
+            : `确定要将方案「${preset.name}」标记为公共方案吗？所有用户都可以查看和使用此方案。`,
+        async () => {
+            try {
+                const res = await fetch(`/api/filter_presets/${selectedPresetId}/toggle_public`, {
+                    method: 'POST'
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || '操作失败', 'danger');
+                    return;
+                }
+
+                showToast(
+                    data.is_public ? `方案「${data.name}」已标记为公共` : `方案「${data.name}」已取消公共`,
+                    'success'
+                );
+                await loadPresetList();
+
+                const select = document.getElementById('presetSelect');
+                if (select) {
+                    select.value = selectedPresetId;
+                    onPresetSelectChange(select);
+                }
+            } catch (e) {
+                console.error('Toggle public failed:', e);
+                showToast('操作失败', 'danger');
+            }
+        }
+    );
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('presetSelect')) {
+        loadPresetList();
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closePresetModal();
+            closeRenamePresetModal();
+        }
+        if (e.key === 'Enter') {
+            const saveModal = document.getElementById('savePresetModal');
+            if (saveModal && saveModal.style.display === 'flex') {
+                confirmSavePreset();
+            }
+            const renameModal = document.getElementById('renamePresetModal');
+            if (renameModal && renameModal.style.display === 'flex') {
+                confirmRenamePreset();
+            }
+        }
+    });
+});
+
+const overlaySave = document.getElementById('savePresetModal');
+if (overlaySave) {
+    overlaySave.addEventListener('click', (e) => {
+        if (e.target === overlaySave) closePresetModal();
+    });
+}
+
+const overlayRename = document.getElementById('renamePresetModal');
+if (overlayRename) {
+    overlayRename.addEventListener('click', (e) => {
+        if (e.target === overlayRename) closeRenamePresetModal();
+    });
+}

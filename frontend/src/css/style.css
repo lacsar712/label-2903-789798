@@ -557,3 +557,230 @@ input:hover {
     transform: translateY(-50%);
     border-right-color: var(--card-bg);
 }
+
+/* ============ Filter Preset Manager ============ */
+
+.preset-manager {
+    background: var(--card-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.preset-manager::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, #38bdf8, #818cf8, #c084fc);
+    border-radius: 20px 0 0 20px;
+}
+
+.preset-header {
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.preset-title {
+    font-size: 15px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+}
+
+.preset-controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.preset-select-wrap {
+    flex: 1;
+    min-width: 300px;
+    max-width: 450px;
+}
+
+.preset-select-wrap select {
+    width: 100%;
+    height: 40px;
+    font-size: 14px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all 0.3s ease;
+}
+
+.preset-select-wrap select:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+}
+
+.preset-select-wrap select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.preset-select-wrap optgroup {
+    background: #1e293b;
+    color: var(--text-primary);
+}
+
+.preset-select-wrap option {
+    padding: 8px;
+    color: var(--text-primary);
+    background: #1e293b;
+}
+
+.preset-select-wrap option[value=""] {
+    color: var(--text-secondary);
+}
+
+.preset-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 13px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.btn-sm:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn-preset-save {
+    background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.btn-preset-apply {
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+}
+
+.btn-preset-edit {
+    background: linear-gradient(135deg, #818cf8, #6366f1);
+}
+
+.btn-preset-delete {
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
+}
+
+.btn-preset-public {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.btn-preset-refresh {
+    background: linear-gradient(135deg, #64748b, #475569);
+}
+
+.preset-info {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.preset-info-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.preset-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+}
+
+.preset-tag-mine {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.preset-tag-public {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    font-weight: 700;
+    animation: publicPulse 2s ease-in-out infinite;
+}
+
+@keyframes publicPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 8px 2px rgba(251, 191, 36, 0.15);
+    }
+}
+
+.preset-tag-owner {
+    background: rgba(129, 140, 248, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
+.preset-tag-time {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-secondary);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    font-family: 'Inter', monospace;
+}
+
+/* Enhanced optgroup visual separation */
+.preset-select-wrap optgroup[label*="公共"] {
+    border-top: 1px solid rgba(251, 191, 36, 0.3);
+    margin-top: 6px;
+    padding-top: 6px;
+}
+
+.preset-select-wrap optgroup[label*="公共"]::before {
+    content: '';
+    display: block;
+    height: 1px;
+    margin-bottom: 4px;
+}
+
+@media (max-width: 1024px) {
+    .preset-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .preset-select-wrap {
+        max-width: none;
+    }
+
+    .preset-buttons {
+        justify-content: flex-start;
+    }
+}
