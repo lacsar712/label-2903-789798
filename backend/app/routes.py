@@ -965,6 +965,261 @@ def get_alert_meta():
         ]
     })
 
+# ============ Quarterly Report ============
+
+@bp.route("/quarterly_report")
+@login_required
+def quarterly_report():
+    if current_user.role != 'admin':
+        return redirect(url_for('main.home'))
+    return render_template('quarterly_report.html')
+
+@bp.route("/api/report/periods", methods=['GET'])
+@login_required
+def get_report_periods():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+    
+    periods = db.session.query(SalesData.period).distinct().order_by(SalesData.period.asc()).all()
+    brands = db.session.query(CarModel.brand).distinct().order_by(CarModel.brand.asc()).all()
+    
+    return jsonify({
+        'periods': [p[0] for p in periods],
+        'brands': [b[0] for b in brands]
+    })
+
+@bp.route("/api/report/generate", methods=['POST'])
+@login_required
+def generate_quarterly_report():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+    
+    data = request.json
+    target_period = data.get('period')
+    selected_brands = data.get('brands', [])
+    
+    if not target_period:
+        return jsonify({'error': '请选择目标季度'}), 400
+    
+    # Parse period for previous quarter calculation
+    # Expected format: "YYYY QN" e.g. "2024 Q1"
+    try:
+        year_part, q_part = target_period.split()
+        year = int(year_part)
+        q_num = int(q_part.replace('Q', ''))
+    except:
+        return jsonify({'error': '季度格式错误'}), 400
+    
+    # Calculate previous period
+    if q_num == 1:
+        prev_q_num = 4
+        prev_year = year - 1
+    else:
+        prev_q_num = q_num - 1
+        prev_year = year
+    prev_period = f"{prev_year} Q{prev_q_num}"
+    
+    # Build base queries
+    sales_query = db.session.query(
+        SalesData, CarModel
+    ).join(CarModel).filter(SalesData.period == target_period)
+    
+    prev_sales_query = db.session.query(
+        SalesData, CarModel
+    ).join(CarModel).filter(SalesData.period == prev_period)
+    
+    if selected_brands:
+        sales_query = sales_query.filter(CarModel.brand.in_(selected_brands))
+        prev_sales_query = prev_sales_query.filter(CarModel.brand.in_(selected_brands))
+    
+    # ========== 1. 销量总览 ==========
+    total_sales_current = db.session.query(
+        func.coalesce(func.sum(SalesData.quantity), 0)
+    ).join(CarModel).filter(SalesData.period == target_period)
+    
+    total_sales_prev = db.session.query(
+        func.coalesce(func.sum(SalesData.quantity), 0)
+    ).join(CarModel).filter(SalesData.period == prev_period)
+    
+    if selected_brands:
+        total_sales_current = total_sales_current.filter(CarModel.brand.in_(selected_brands))
+        total_sales_prev = total_sales_prev.filter(CarModel.brand.in_(selected_brands))
+    
+    total_current = total_sales_current.scalar() or 0
+    total_prev = total_sales_prev.scalar() or 0
+    
+    qoq_change = 0
+    if total_prev > 0:
+        qoq_change = round(((total_current - total_prev) / total_prev) * 100, 1)
+    
+    # Number of models and brands
+    distinct_models = db.session.query(func.count(func.distinct(CarModel.id))).join(SalesData).filter(SalesData.period == target_period)
+    distinct_brands_count = db.session.query(func.count(func.distinct(CarModel.brand))).join(SalesData).filter(SalesData.period == target_period)
+    distinct_regions = db.session.query(func.count(func.distinct(SalesData.region))).join(CarModel).filter(SalesData.period == target_period)
+    
+    if selected_brands:
+        distinct_models = distinct_models.filter(CarModel.brand.in_(selected_brands))
+        distinct_brands_count = distinct_brands_count.filter(CarModel.brand.in_(selected_brands))
+        distinct_regions = distinct_regions.filter(CarModel.brand.in_(selected_brands))
+    
+    # ========== 2. 品牌前五榜单 ==========
+    brand_rank_query = db.session.query(
+        CarModel.brand,
+        func.sum(SalesData.quantity).label('brand_sales'),
+        func.count(func.distinct(CarModel.id)).label('model_count')
+    ).join(SalesData).filter(SalesData.period == target_period)
+    
+    if selected_brands:
+        brand_rank_query = brand_rank_query.filter(CarModel.brand.in_(selected_brands))
+    
+    brand_rankings = brand_rank_query.group_by(CarModel.brand).order_by(func.sum(SalesData.quantity).desc()).limit(5).all()
+    
+    brand_ranking_list = []
+    for i, br in enumerate(brand_rankings):
+        market_share = round((br.brand_sales / total_current * 100), 1) if total_current > 0 else 0
+        
+        # Get previous sales for this brand
+        prev_brand_sales = db.session.query(
+            func.coalesce(func.sum(SalesData.quantity), 0)
+        ).join(CarModel).filter(
+            SalesData.period == prev_period,
+            CarModel.brand == br.brand
+        ).scalar() or 0
+        
+        brand_qoq = 0
+        if prev_brand_sales > 0:
+            brand_qoq = round(((br.brand_sales - prev_brand_sales) / prev_brand_sales) * 100, 1)
+        
+        # Top model for this brand
+        top_model = db.session.query(
+            CarModel.model_name,
+            func.sum(SalesData.quantity).label('model_sales')
+        ).join(SalesData).filter(
+            SalesData.period == target_period,
+            CarModel.brand == br.brand
+        ).group_by(CarModel.model_name).order_by(func.sum(SalesData.quantity).desc()).first()
+        
+        brand_ranking_list.append({
+            'rank': i + 1,
+            'brand': br.brand,
+            'sales': br.brand_sales,
+            'market_share': market_share,
+            'qoq_change': brand_qoq,
+            'model_count': br.model_count,
+            'top_model': top_model.model_name if top_model else '-',
+            'top_model_sales': top_model.model_sales if top_model else 0
+        })
+    
+    # ========== 3. 各省热力缩略 ==========
+    province_query = db.session.query(
+        SalesData.region,
+        func.sum(SalesData.quantity).label('region_sales')
+    ).join(CarModel).filter(SalesData.period == target_period)
+    
+    if selected_brands:
+        province_query = province_query.filter(CarModel.brand.in_(selected_brands))
+    
+    province_sales = province_query.group_by(SalesData.region).order_by(func.sum(SalesData.quantity).desc()).all()
+    
+    province_list = []
+    max_province_sales = max([ps.region_sales for ps in province_sales]) if province_sales else 1
+    for ps in province_sales:
+        intensity = round((ps.region_sales / max_province_sales) * 100, 0) if max_province_sales > 0 else 0
+        province_list.append({
+            'name': ps.region,
+            'value': ps.region_sales,
+            'intensity': intensity
+        })
+    
+    # Top 5 provinces
+    top_provinces = province_list[:5]
+    
+    # ========== 4. 电耗表现优异车型清单 ==========
+    # Vehicles with lower than average power consumption, with sales data
+    avg_power = db.session.query(func.avg(CarModel.power_consumption)).scalar() or 15
+    
+    energy_eff_query = db.session.query(
+        CarModel,
+        func.sum(SalesData.quantity).label('total_sales')
+    ).join(SalesData).filter(
+        SalesData.period == target_period,
+        CarModel.power_consumption <= avg_power
+    )
+    
+    if selected_brands:
+        energy_eff_query = energy_eff_query.filter(CarModel.brand.in_(selected_brands))
+    
+    energy_eff_vehicles = energy_eff_query.group_by(CarModel.id).order_by(
+        CarModel.power_consumption.asc()
+    ).limit(10).all()
+    
+    energy_list = []
+    for v in energy_eff_vehicles:
+        cm = v.CarModel
+        # Efficiency score: lower is better, normalized
+        eff_score = round((1 - (cm.power_consumption / avg_power)) * 100, 1) if avg_power > 0 else 0
+        energy_list.append({
+            'brand': cm.brand,
+            'model_name': cm.model_name,
+            'category': cm.category,
+            'power_consumption': cm.power_consumption,
+            'range_km': cm.range_km,
+            'weight_kg': cm.weight_kg,
+            'price': cm.price,
+            'sales': v.total_sales or 0,
+            'eff_score': eff_score
+        })
+    
+    # ========== 5. 车型销量排行 ==========
+    model_sales_query = db.session.query(
+        CarModel.brand,
+        CarModel.model_name,
+        CarModel.category,
+        func.sum(SalesData.quantity).label('model_sales')
+    ).join(SalesData).filter(SalesData.period == target_period)
+    
+    if selected_brands:
+        model_sales_query = model_sales_query.filter(CarModel.brand.in_(selected_brands))
+    
+    top_models = model_sales_query.group_by(CarModel.id).order_by(func.sum(SalesData.quantity).desc()).limit(5).all()
+    
+    top_models_list = [{
+        'rank': i + 1,
+        'brand': tm.brand,
+        'model_name': tm.model_name,
+        'category': tm.category,
+        'sales': tm.model_sales
+    } for i, tm in enumerate(top_models)]
+    
+    # Generate timestamp
+    generated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    return jsonify({
+        'report_info': {
+            'period': target_period,
+            'prev_period': prev_period,
+            'brands_scope': selected_brands if selected_brands else ['全部品牌'],
+            'generated_at': generated_at,
+            'generated_by': current_user.username
+        },
+        'sales_overview': {
+            'total_sales': total_current,
+            'total_sales_prev': total_prev,
+            'qoq_change': qoq_change,
+            'models_count': distinct_models.scalar() or 0,
+            'brands_count': distinct_brands_count.scalar() or 0,
+            'regions_count': distinct_regions.scalar() or 0,
+            'avg_power_consumption': round(avg_power, 1)
+        },
+        'brand_rankings': brand_ranking_list,
+        'province_data': {
+            'all': province_list,
+            'top5': top_provinces
+        },
+        'energy_efficiency': energy_list,
+        'top_models': top_models_list
+    })
+
 # ============ Energy Consumption Ranking ============
 
 @bp.route("/energy_ranking")

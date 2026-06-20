@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+{% block title %}季度复盘报告{% endblock %}
+{% block content %}
+<div class="report-page" id="reportPage">
+    <div class="report-control-panel" id="controlPanel">
+        <div class="ranking-header">
+            <div class="ranking-header-left">
+                <h2 class="ranking-title">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                    季度复盘报告
+                </h2>
+                <p class="ranking-subtitle">管理员专用 · 一键生成结构化季度复盘文档 · 支持打印导出</p>
+            </div>
+            <div class="ranking-header-right">
+                <div class="report-actions" id="reportActions" style="display: none;">
+                    <button class="btn btn-sm" onclick="window.print()" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                            <polyline points="6 9 6 2 18 2 18 9"/>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                            <rect x="6" y="14" width="12" height="8"/>
+                        </svg>
+                        打印 / 导出PDF
+                    </button>
+                    <button class="btn btn-sm" onclick="regenerateReport()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        重新生成
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="filter-pane" style="margin-top: 20px;">
+            <div class="filter-group">
+                <label>目标季度 *</label>
+                <select id="periodSelect">
+                    <option value="">-- 请选择季度 --</option>
+                </select>
+            </div>
+            <div class="filter-group" style="min-width: 300px; flex: 1; max-width: 450px;">
+                <label>品牌范围（可选，留空为全部品牌）</label>
+                <div id="brandCheckboxes" style="display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 0; min-height: 38px;">
+                </div>
+            </div>
+            <button onclick="generateReport()" class="btn" id="generateBtn" style="margin-left: auto;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+                生成报告
+            </button>
+        </div>
+    </div>
+
+    <div class="report-empty-state" id="emptyReportState">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.2; margin-bottom: 24px;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <h3 style="font-size: 20px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600;">暂无报告内容</h3>
+        <p style="color: var(--text-secondary); font-size: 14px;">请选择目标季度并点击「生成报告」按钮</p>
+    </div>
+
+    <div class="report-container" id="reportContainer" style="display: none;">
+        <div class="report-content" id="reportContent">
+            <section class="report-section report-cover" id="coverSection">
+                <div class="cover-bg-decoration"></div>
+                <div class="cover-content">
+                    <div class="cover-branding">
+                        <div class="cover-logo-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M3 3v18h18"/>
+                                <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                            </svg>
+                        </div>
+                        <span class="cover-logo-text">NEV QUANTUM</span>
+                    </div>
+                    <h1 class="report-main-title" id="reportMainTitle">新能源汽车季度复盘报告</h1>
+                    <div class="report-period-badge" id="periodBadge">2024 Q1</div>
+                    <div class="cover-meta">
+                        <div class="cover-meta-item">
+                            <span class="cover-meta-label">报告范围</span>
+                            <span class="cover-meta-value" id="scopeValue">全部品牌</span>
+                        </div>
+                        <div class="cover-meta-divider"></div>
+                        <div class="cover-meta-item">
+                            <span class="cover-meta-label">生成时间</span>
+                            <span class="cover-meta-value" id="genTimeValue">--</span>
+                        </div>
+                        <div class="cover-meta-divider"></div>
+                        <div class="cover-meta-item">
+                            <span class="cover-meta-label">编制人</span>
+                            <span class="cover-meta-value" id="genUserValue">--</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="cover-footer">
+                    <span>机密文件 · 仅供内部使用</span>
+                </div>
+            </section>
+
+            <div class="report-page-break"></div>
+
+            <section class="report-section">
+                <div class="section-header">
+                    <div class="section-number">01</div>
+                    <div class="section-title-wrap">
+                        <h2 class="section-title">销量总览</h2>
+                        <p class="section-subtitle">Sales Overview · 季度核心指标一览</p>
+                    </div>
+                </div>
+                <div class="overview-grid" id="overviewGrid">
+                </div>
+                <div class="overview-chart-wrap">
+                    <div class="chart-card" style="height: 320px; margin: 0;">
+                        <h3>品牌销量对比 TOP5</h3>
+                        <div id="overviewBarChart" class="chart-box" style="height: 260px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="report-page-break"></div>
+
+            <section class="report-section">
+                <div class="section-header">
+                    <div class="section-number">02</div>
+                    <div class="section-title-wrap">
+                        <h2 class="section-title">品牌前五榜单</h2>
+                        <p class="section-subtitle">Top 5 Brands · 销量排行与市场份额</p>
+                    </div>
+                </div>
+                <div class="brand-ranking-table-wrap">
+                    <table class="brand-ranking-table" id="brandRankingTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">排名</th>
+                                <th>品牌</th>
+                                <th style="width: 120px; text-align: right;">季度销量</th>
+                                <th style="width: 100px; text-align: right;">市场份额</th>
+                                <th style="width: 100px; text-align: right;">环比变化</th>
+                                <th style="width: 100px; text-align: right;">在售车型</th>
+                                <th style="width: 200px;">热销车型</th>
+                            </tr>
+                        </thead>
+                        <tbody id="brandRankingBody">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="sub-section">
+                    <h3 class="sub-section-title">车型销量 TOP5</h3>
+                    <div class="top-models-list" id="topModelsList">
+                    </div>
+                </div>
+            </section>
+
+            <div class="report-page-break"></div>
+
+            <section class="report-section">
+                <div class="section-header">
+                    <div class="section-number">03</div>
+                    <div class="section-title-wrap">
+                        <h2 class="section-title">各省热力缩略</h2>
+                        <p class="section-subtitle">Regional Heatmap · 全国销量分布概览</p>
+                    </div>
+                </div>
+                <div class="region-layout">
+                    <div class="region-map-wrap">
+                        <div class="chart-card" style="height: 420px; margin: 0;">
+                            <h3>全国销量热力分布</h3>
+                            <div id="provinceMapChart" class="chart-box" style="height: 360px;"></div>
+                        </div>
+                    </div>
+                    <div class="region-top-list">
+                        <h3 class="sub-section-title">TOP 5 省份</h3>
+                        <div class="top-province-list" id="topProvinceList">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="report-page-break"></div>
+
+            <section class="report-section">
+                <div class="section-header">
+                    <div class="section-number">04</div>
+                    <div class="section-title-wrap">
+                        <h2 class="section-title">电耗表现优异车型</h2>
+                        <p class="section-subtitle">Energy Efficiency · 百公里电耗低于行业均值</p>
+                    </div>
+                </div>
+                <div class="eff-stats-row" id="effStatsRow">
+                </div>
+                <div class="energy-table-wrap">
+                    <table class="energy-eff-table" id="energyEffTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>车型</th>
+                                <th style="width: 100px;">品牌</th>
+                                <th style="width: 80px;">类型</th>
+                                <th style="width: 120px; text-align: right;">百公里电耗</th>
+                                <th style="width: 100px; text-align: right;">效率评分</th>
+                                <th style="width: 100px; text-align: right;">续航里程</th>
+                                <th style="width: 100px; text-align: right;">季度销量</th>
+                            </tr>
+                        </thead>
+                        <tbody id="energyEffBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="report-page-break"></div>
+
+            <section class="report-section report-summary">
+                <div class="section-header">
+                    <div class="section-number">05</div>
+                    <div class="section-title-wrap">
+                        <h2 class="section-title">报告结语</h2>
+                        <p class="section-subtitle">Report Summary · 核心洞察提炼</p>
+                    </div>
+                </div>
+                <div class="summary-insights" id="summaryInsights">
+                </div>
+                <div class="report-signature">
+                    <div class="sig-line">
+                        <span class="sig-label">报告编制</span>
+                        <span class="sig-line-draw" id="sigUser"></span>
+                    </div>
+                    <div class="sig-line">
+                        <span class="sig-label">签发日期</span>
+                        <span class="sig-line-draw" id="sigDate"></span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script>
+let reportData = null;
+let chartInstances = {};
+
+async function loadMeta() {
+    try {
+        const res = await fetch('/api/report/periods');
+        const data = await res.json();
+        
+        const periodSelect = document.getElementById('periodSelect');
+        data.periods.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            periodSelect.appendChild(opt);
+        });
+        if (data.periods.length > 0) {
+            periodSelect.value = data.periods[data.periods.length - 1];
+        }
+        
+        const brandBoxes = document.getElementById('brandCheckboxes');
+        data.brands.forEach(b => {
+            const label = document.createElement('label');
+            label.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--text-secondary);';
+            label.innerHTML = `
+                <input type="checkbox" class="brand-checkbox" value="${b}" style="width: auto; height: auto; margin: 0;">
+                <span>${b}</span>
+            `;
+            brandBoxes.appendChild(label);
+        });
+    } catch (e) {
+        console.error(e);
+        showToast('加载元数据失败', 'danger');
+    }
+}
+
+function getSelectedBrands() {
+    return Array.from(document.querySelectorAll('.brand-checkbox:checked')).map(cb => cb.value);
+}
+
+async function generateReport() {
+    const period = document.getElementById('periodSelect').value;
+    if (!period) {
+        showToast('请选择目标季度', 'danger');
+        return;
+    }
+    
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px; animation: spin 1s linear infinite;">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+        生成中...
+    `;
+    
+    try {
+        const brands = getSelectedBrands();
+        const res = await fetch('/api/report/generate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({period, brands})
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error || '生成失败');
+        }
+        
+        reportData = data;
+        renderReport();
+        
+        document.getElementById('emptyReportState').style.display = 'none';
+        document.getElementById('reportContainer').style.display = 'block';
+        document.getElementById('reportActions').style.display = 'flex';
+        document.getElementById('reportActions').style.gap = '10px';
+        
+        showToast('报告生成成功！', 'success');
+    } catch (e) {
+        console.error(e);
+        showToast(e.message || '报告生成失败', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            生成报告
+        `;
+    }
+}
+
+function regenerateReport() {
+    generateReport();
+}
+
+function renderReport() {
+    if (!reportData) return;
+    
+    const info = reportData.report_info;
+    const overview = reportData.sales_overview;
+    
+    document.getElementById('reportMainTitle').textContent = `${info.period} 新能源汽车季度复盘报告`;
+    document.getElementById('periodBadge').textContent = info.period;
+    document.getElementById('scopeValue').textContent = info.brands_scope.join('、');
+    document.getElementById('genTimeValue').textContent = info.generated_at;
+    document.getElementById('genUserValue').textContent = info.generated_by;
+    document.getElementById('sigUser').textContent = info.generated_by;
+    document.getElementById('sigDate').textContent = info.generated_at.split(' ')[0];
+    
+    renderOverview(overview);
+    renderBrandRankings(reportData.brand_rankings);
+    renderTopModels(reportData.top_models);
+    renderProvinceData(reportData.province_data);
+    renderEnergyEfficiency(reportData.energy_efficiency, overview.avg_power_consumption);
+    renderSummary(reportData);
+    
+    setTimeout(() => {
+        initReportCharts();
+    }, 100);
+}
+
+function renderOverview(ov) {
+    const qoqClass = ov.qoq_change >= 0 ? 'positive' : 'negative';
+    const qoqIcon = ov.qoq_change >= 0 ? '↑' : '↓';
+    
+    const cards = [
+        {label: '季度总销量', value: formatNumber(ov.total_sales), unit: '辆', sub: `上季 ${formatNumber(ov.total_sales_prev)} 辆`, icon: '📦'},
+        {label: '环比变化', value: `${qoqIcon} ${Math.abs(ov.qoq_change)}`, unit: '%', sub: `较 ${reportData.report_info.prev_period}`, valueClass: qoqClass, icon: '📈'},
+        {label: '覆盖品牌', value: ov.brands_count, unit: '个', sub: `含 ${ov.models_count} 款车型`, icon: '🏷️'},
+        {label: '覆盖区域', value: ov.regions_count, unit: '省/市', sub: '全国省份统计', icon: '🗺️'},
+    ];
+    
+    document.getElementById('overviewGrid').innerHTML = cards.map(c => `
+        <div class="overview-card">
+            <div class="ov-icon">${c.icon}</div>
+            <div class="ov-content">
+                <div class="ov-label">${c.label}</div>
+                <div class="ov-value-wrap">
+                    <span class="ov-value ${c.valueClass || ''}">${c.value}</span>
+                    <span class="ov-unit">${c.unit}</span>
+                </div>
+                <div class="ov-sub">${c.sub}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderBrandRankings(brands) {
+    const tbody = document.getElementById('brandRankingBody');
+    tbody.innerHTML = brands.map(b => {
+        const rankClass = b.rank <= 3 ? ['gold', 'silver', 'bronze'][b.rank - 1] : 'normal';
+        const qoqClass = b.qoq_change >= 0 ? 'trend-up' : 'trend-down';
+        const qoqIcon = b.qoq_change >= 0 ? '▲' : '▼';
+        return `
+            <tr>
+                <td>
+                    <div class="rank-badge ${rankClass}" style="width: 44px; height: 44px; margin: 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-weight: 700;">
+                        ${b.rank}
+                    </div>
+                </td>
+                <td style="font-size: 17px; font-weight: 700; color: var(--text-primary);">${b.brand}</td>
+                <td style="text-align: right; font-size: 16px; font-weight: 600; color: var(--text-primary);">${formatNumber(b.sales)}</td>
+                <td style="text-align: right;">
+                    <div class="share-bar-wrap">
+                        <div class="share-bar" style="width: ${Math.min(b.market_share, 100)}%;"></div>
+                        <span>${b.market_share}%</span>
+                    </div>
+                </td>
+                <td style="text-align: right;" class="${qoqClass}">${qoqIcon} ${Math.abs(b.qoq_change)}%</td>
+                <td style="text-align: right;">${b.model_count} 款</td>
+                <td>
+                    <span style="color: var(--accent-color); font-weight: 500;">${b.top_model}</span>
+                    <span style="color: var(--text-secondary); font-size: 12px; margin-left: 6px;">(${formatNumber(b.top_model_sales)}辆)</span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderTopModels(models) {
+    const list = document.getElementById('topModelsList');
+    const colors = ['#fbbf24', '#94a3b8', '#d97706', '#38bdf8', '#818cf8'];
+    list.innerHTML = models.map((m, i) => `
+        <div class="top-model-item">
+            <div class="tm-rank" style="background: ${colors[i]}; color: ${i <= 2 ? '#1e293b' : '#fff'};">${m.rank}</div>
+            <div class="tm-info">
+                <div class="tm-name">${m.model_name}</div>
+                <div class="tm-brand">${m.brand} · ${m.category}</div>
+            </div>
+            <div class="tm-sales">
+                <span class="tm-sales-num">${formatNumber(m.sales)}</span>
+                <span class="tm-sales-unit">辆</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderProvinceData(province) {
+    const list = document.getElementById('topProvinceList');
+    const maxVal = province.top5.length > 0 ? province.top5[0].value : 1;
+    
+    list.innerHTML = province.top5.map((p, i) => {
+        const percent = (p.value / maxVal * 100).toFixed(0);
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        return `
+            <div class="top-province-item">
+                <div class="tp-medal">${medals[i]}</div>
+                <div class="tp-info">
+                    <div class="tp-name">${p.name.replace(/市|省|自治区|壮族自治区|回族自治区|维吾尔自治区|特别行政区/g, '')}</div>
+                    <div class="tp-bar-wrap">
+                        <div class="tp-bar" style="width: ${percent}%;"></div>
+                    </div>
+                </div>
+                <div class="tp-value">${formatNumber(p.value)}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderEnergyEfficiency(effList, avgPower) {
+    const stats = document.getElementById('effStatsRow');
+    const totalEff = effList.length;
+    const avgScore = totalEff > 0 ? (effList.reduce((s, e) => s + e.eff_score, 0) / totalEff).toFixed(1) : 0;
+    const bestEff = totalEff > 0 ? Math.min(...effList.map(e => e.power_consumption)) : 0;
+    const totalEffSales = effList.reduce((s, e) => s + e.sales, 0);
+    
+    stats.innerHTML = `
+        <div class="eff-stat-card">
+            <div class="es-label">上榜车型</div>
+            <div class="es-value">${totalEff}<span class="es-unit">款</span></div>
+        </div>
+        <div class="eff-stat-card">
+            <div class="es-label">平均效率评分</div>
+            <div class="es-value" style="color: #10b981;">${avgScore}<span class="es-unit">分</span></div>
+        </div>
+        <div class="eff-stat-card">
+            <div class="es-label">最优电耗</div>
+            <div class="es-value" style="color: #38bdf8;">${bestEff}<span class="es-unit">kWh/100km</span></div>
+        </div>
+        <div class="eff-stat-card">
+            <div class="es-label">行业均值</div>
+            <div class="es-value" style="color: var(--text-secondary);">${avgPower}<span class="es-unit">kWh/100km</span></div>
+        </div>
+        <div class="eff-stat-card">
+            <div class="es-label">合计季度销量</div>
+            <div class="es-value" style="color: #818cf8;">${formatNumber(totalEffSales)}<span class="es-unit">辆</span></div>
+        </div>
+    `;
+    
+    const tbody = document.getElementById('energyEffBody');
+    tbody.innerHTML = effList.map((e, i) => {
+        const catClass = e.category === '纯电' ? 'category-badge ev' : 'category-badge hybrid';
+        const barWidth = Math.min(e.eff_score, 100);
+        return `
+            <tr>
+                <td style="font-weight: 600; color: var(--text-secondary);">${i + 1}</td>
+                <td style="font-weight: 600; color: var(--text-primary);">${e.model_name}</td>
+                <td><span style="color: var(--text-secondary);">${e.brand}</span></td>
+                <td><span class="${catClass}" style="font-size: 11px; padding: 2px 8px;">${e.category}</span></td>
+                <td style="text-align: right; font-weight: 700; color: var(--text-primary);">${e.power_consumption} <span style="color: var(--text-secondary); font-size: 11px; font-weight: 400;">kWh</span></td>
+                <td style="text-align: right;">
+                    <div class="score-bar-wrap">
+                        <div class="score-bar" style="width: ${barWidth}%;"></div>
+                        <span style="color: #10b981; font-weight: 600;">${e.eff_score}分</span>
+                    </div>
+                </td>
+                <td style="text-align: right;">${e.range_km} km</td>
+                <td style="text-align: right; color: var(--accent-color); font-weight: 500;">${formatNumber(e.sales)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderSummary(data) {
+    const ov = data.sales_overview;
+    const brands = data.brand_rankings;
+    const topProvinces = data.province_data.top5;
+    const topEff = data.energy_efficiency[0];
+    
+    const insights = [];
+    
+    insights.push({
+        title: '市场规模',
+        content: `本季度合计销量 <b>${formatNumber(ov.total_sales)}</b> 辆，较上一季度${ov.qoq_change >= 0 ? '增长' : '下滑'} <b style="color: ${ov.qoq_change >= 0 ? '#10b981' : '#f43f5e'}">${Math.abs(ov.qoq_change)}%</b>，覆盖 <b>${ov.brands_count}</b> 个品牌、<b>${ov.models_count}</b> 款车型。`
+    });
+    
+    if (brands.length > 0) {
+        const topBrand = brands[0];
+        insights.push({
+            title: '品牌格局',
+            content: `<b style="color: #fbbf24;">${topBrand.brand}</b> 以 <b>${formatNumber(topBrand.sales)}</b> 辆领跑市场，占据 <b>${topBrand.market_share}%</b> 份额，旗下 <b>${topBrand.top_model}</b> 为最畅销车型。${brands.length >= 2 ? `第 2-3 名分别为 <b>${brands[1].brand}</b> 与 <b>${brands[2].brand}</b>。` : ''}`
+        });
+    }
+    
+    if (topProvinces.length > 0) {
+        insights.push({
+            title: '区域热力',
+            content: `销量 TOP3 省份依次为 <b>${topProvinces[0].name.replace(/市|省|自治区/g, '')}</b>（${formatNumber(topProvinces[0].value)}辆）、<b>${topProvinces[1]?.name?.replace(/市|省|自治区/g, '') || '-'}</b> 与 <b>${topProvinces[2]?.name?.replace(/市|省|自治区/g, '') || '-'}</b>，区域集中度明显。`
+        });
+    }
+    
+    if (topEff) {
+        insights.push({
+            title: '效率标杆',
+            content: `<b style="color: #10b981;">${topEff.model_name}</b>（${topEff.brand}）以百公里电耗 <b>${topEff.power_consumption} kWh</b> 成为效率冠军，效率评分 <b>${topEff.eff_score} 分</b>，季度销量 <b>${formatNumber(topEff.sales)}</b> 辆，兼顾节能与市场认可。`
+        });
+    }
+    
+    document.getElementById('summaryInsights').innerHTML = insights.map(ins => `
+        <div class="insight-item">
+            <div class="insight-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                ${ins.title}
+            </div>
+            <div class="insight-content">${ins.content}</div>
+        </div>
+    `).join('');
+}
+
+function initReportCharts() {
+    Object.values(chartInstances).forEach(c => c && c.dispose());
+    chartInstances = {};
+    
+    const barEl = document.getElementById('overviewBarChart');
+    if (barEl && reportData?.brand_rankings?.length) {
+        chartInstances.bar = echarts.init(barEl);
+        const br = reportData.brand_rankings;
+        chartInstances.bar.setOption({
+            tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#fff' } },
+            grid: { left: 60, right: 30, top: 30, bottom: 40 },
+            xAxis: { 
+                type: 'category', 
+                data: br.map(b => b.brand), 
+                axisLabel: { color: '#94a3b8', fontSize: 12 },
+                axisLine: { lineStyle: { color: '#334155' } }
+            },
+            yAxis: { 
+                type: 'value', 
+                axisLabel: { color: '#94a3b8', fontSize: 11 },
+                splitLine: { lineStyle: { color: 'rgba(51, 65, 85, 0.5)' } }
+            },
+            series: [{
+                type: 'bar',
+                data: br.map((b, i) => ({
+                    value: b.sales,
+                    itemStyle: {
+                        borderRadius: [6, 6, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: ['#fbbf24', '#94a3b8', '#d97706', '#38bdf8', '#818cf8'][i] || '#38bdf8' },
+                            { offset: 1, color: ['#fbbf24', '#94a3b8', '#d97706', '#38bdf8', '#818cf8'][i] + '66' || '#818cf866' }
+                        ])
+                    }
+                })),
+                barWidth: '45%',
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: '#f8fafc',
+                    fontWeight: 600,
+                    fontSize: 11,
+                    formatter: p => formatNumber(p.value)
+                }
+            }]
+        });
+    }
+    
+    const mapEl = document.getElementById('provinceMapChart');
+    if (mapEl && reportData?.province_data?.all?.length) {
+        chartInstances.map = echarts.init(mapEl);
+        const mapData = reportData.province_data.all;
+        const vals = mapData.map(d => d.value).filter(v => v > 0);
+        const maxVal = vals.length > 0 ? Math.max(...vals) : 100;
+        
+        const chinaMapUrl = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
+        fetch(chinaMapUrl).then(r => r.json()).then(geoJson => {
+            echarts.registerMap('china', geoJson);
+            chartInstances.map.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#1e293b',
+                    borderColor: '#334155',
+                    textStyle: { color: '#fff' },
+                    formatter: p => `${p.name}<br/>销量: ${formatNumber(p.value || 0)} 辆`
+                },
+                visualMap: {
+                    min: 0,
+                    max: maxVal,
+                    left: 15,
+                    bottom: 15,
+                    text: ['高', '低'],
+                    calculable: true,
+                    inRange: { color: ['#1e3a5f', '#0284c7', '#38bdf8', '#7dd3fc'] },
+                    textStyle: { color: '#94a3b8', fontSize: 10 },
+                    itemWidth: 12,
+                    itemHeight: 80
+                },
+                series: [{
+                    type: 'map',
+                    map: 'china',
+                    roam: false,
+                    zoom: 1.1,
+                    scaleLimit: { min: 1, max: 1 },
+                    label: { show: false },
+                    emphasis: {
+                        label: { show: true, color: '#fff', fontSize: 10 },
+                        itemStyle: { areaColor: '#818cf8' }
+                    },
+                    itemStyle: {
+                        borderColor: 'rgba(255,255,255,0.2)',
+                        borderWidth: 0.5
+                    },
+                    data: mapData.map(d => ({ name: d.name, value: d.value }))
+                }]
+            });
+        });
+    }
+}
+
+function formatNumber(n) {
+    if (n == null) return '0';
+    return Number(n).toLocaleString('zh-CN');
+}
+
+window.addEventListener('load', () => {
+    loadMeta();
+});
+
+const spinStyle = document.createElement('style');
+spinStyle.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+document.head.appendChild(spinStyle);
+</script>
+{% endblock %}
