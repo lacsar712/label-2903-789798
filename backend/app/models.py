@@ -72,3 +72,24 @@ class AlertNotification(db.Model):
     is_read = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
     user = db.relationship('User', backref=db.backref('notifications', lazy=True))
+
+class CarReview(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    car_model_id = db.Column(db.Integer, db.ForeignKey('car_model.id'), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    admin_note = db.Column(db.Text)
+    reviewed_at = db.Column(db.DateTime)
+    reviewer_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
+    
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('reviews', lazy=True))
+    car_model = db.relationship('CarModel', backref=db.backref('reviews', lazy=True))
+    reviewer = db.relationship('User', foreign_keys=[reviewer_id])
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'car_model_id', name='_user_car_uc'),
+    )

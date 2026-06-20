@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from app import db, bcrypt
-from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset, AlertRule, AlertNotification
+from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset, AlertRule, AlertNotification, CarReview
 from flask_login import login_user, current_user, logout_user, login_required
 from sqlalchemy import func, or_, text
 import random
@@ -127,6 +127,8 @@ def get_bar_data():
     
     return jsonify({
         'models': [c.model_name for c in cars],
+        'model_ids': [c.id for c in cars],
+        'brands': [c.brand for c in cars],
         'range': [c.range_km for c in cars],
         'price': [c.price for c in cars],
         'power': [c.power_consumption for c in cars]
@@ -1275,4 +1277,174 @@ def get_energy_ranking():
         'total': total,
         'avg_consumption': avg_consumption,
         'best_consumption': best_consumption
+    })
+
+# ============ Car Review System ============
+
+@bp.route("/api/reviews", methods=['POST'])
+@login_required
+def submit_review():
+    data = request.json
+    car_model_id = data.get('car_model_id')
+    rating = data.get('rating')
+    comment = data.get('comment', '').strip()
+
+    if not car_model_id or not rating:
+        return jsonify({'error': '请选择车型并给出评分'}), 400
+
+    try:
+        rating = int(rating)
+        if rating < 1 or rating > 5:
+            return jsonify({'error': '评分必须在1-5星之间'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': '评分格式无效'}), 400
+
+    if not comment:
+        return jsonify({'error': '请填写评价内容'}), 400
+
+    car = CarModel.query.get(car_model_id)
+    if not car:
+        return jsonify({'error': '车型不存在'}), 404
+
+    existing = CarReview.query.filter_by(
+        user_id=current_user.id,
+        car_model_id=car_model_id
+    ).first()
+
+    if existing:
+        existing.rating = rating
+        existing.comment = comment
+        existing.status = 'pending'
+        existing.admin_note = None
+        existing.reviewed_at = None
+        existing.reviewer_id = None
+        existing.updated_at = datetime.now()
+        message = '评价已更新，重新进入审核队列'
+    else:
+        review = CarReview(
+            user_id=current_user.id,
+            car_model_id=car_model_id,
+            rating=rating,
+            comment=comment,
+            status='pending'
+        )
+        db.session.add(review)
+        message = '评价提交成功，等待管理员审核'
+
+    db.session.commit()
+    return jsonify({'status': 'ok', 'message': message})
+
+@bp.route("/api/reviews/summary/<int:car_id>", methods=['GET'])
+@login_required
+def get_review_summary(car_id):
+    car = CarModel.query.get(car_id)
+    if not car:
+        return jsonify({'error': '车型不存在'}), 404
+
+    approved = CarReview.query.filter_by(
+        car_model_id=car_id,
+        status='approved'
+    ).all()
+
+    count = len(approved)
+    avg_rating = 0
+    if count > 0:
+        avg_rating = round(sum(r.rating for r in approved) / count, 1)
+
+    return jsonify({
+        'car_id': car_id,
+        'model_name': car.model_name,
+        'brand': car.brand,
+        'avg_rating': avg_rating,
+        'review_count': count
+    })
+
+@bp.route("/api/reviews/my/<int:car_id>", methods=['GET'])
+@login_required
+def get_my_review(car_id):
+    review = CarReview.query.filter_by(
+        user_id=current_user.id,
+        car_model_id=car_id
+    ).first()
+
+    if not review:
+        return jsonify({'review': None})
+
+    return jsonify({
+        'review': {
+            'id': review.id,
+            'rating': review.rating,
+            'comment': review.comment,
+            'status': review.status,
+            'admin_note': review.admin_note,
+            'created_at': review.created_at.strftime('%Y-%m-%d %H:%M'),
+            'updated_at': review.updated_at.strftime('%Y-%m-%d %H:%M')
+        }
+    })
+
+@bp.route("/admin/reviews")
+@login_required
+def admin_reviews():
+    if current_user.role != 'admin':
+        return redirect(url_for('main.home'))
+    return render_template('admin_reviews.html')
+
+@bp.route("/api/admin/reviews", methods=['GET'])
+@login_required
+def get_admin_reviews():
+    if current_user.role != 'admin':
+        return jsonify([]), 403
+
+    status = request.args.get('status', 'pending')
+    query = CarReview.query
+
+    if status in ['pending', 'approved', 'rejected']:
+        query = query.filter_by(status=status)
+
+    reviews = query.order_by(CarReview.created_at.desc()).all()
+
+    return jsonify([{
+        'id': r.id,
+        'user_id': r.user_id,
+        'username': r.user.username,
+        'car_model_id': r.car_model_id,
+        'model_name': r.car_model.model_name,
+        'brand': r.car_model.brand,
+        'rating': r.rating,
+        'comment': r.comment,
+        'status': r.status,
+        'admin_note': r.admin_note,
+        'reviewer_name': r.reviewer.username if r.reviewer else None,
+        'created_at': r.created_at.strftime('%Y-%m-%d %H:%M'),
+        'updated_at': r.updated_at.strftime('%Y-%m-%d %H:%M'),
+        'reviewed_at': r.reviewed_at.strftime('%Y-%m-%d %H:%M') if r.reviewed_at else None
+    } for r in reviews])
+
+@bp.route("/api/admin/reviews/<int:review_id>/review", methods=['POST'])
+@login_required
+def review_approval(review_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+
+    review = CarReview.query.get_or_404(review_id)
+    data = request.json
+    action = data.get('action')
+    admin_note = data.get('admin_note', '').strip()
+
+    if action not in ['approve', 'reject']:
+        return jsonify({'error': '无效的操作'}), 400
+
+    if action == 'reject' and not admin_note:
+        return jsonify({'error': '驳回时请填写处理意见'}), 400
+
+    review.status = 'approved' if action == 'approve' else 'rejected'
+    review.admin_note = admin_note if admin_note else None
+    review.reviewed_at = datetime.now()
+    review.reviewer_id = current_user.id
+
+    db.session.commit()
+
+    return jsonify({
+        'status': 'ok',
+        'message': f'已{"通过" if action == "approve" else "驳回"}该评价'
     })

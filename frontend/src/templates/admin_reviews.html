@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}口碑审核{% endblock %}
+{% block content %}
+<div class="review-admin-page">
+    <div class="review-admin-header">
+        <div class="review-header-left">
+            <h2>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                口碑审核管理
+            </h2>
+            <p class="review-subtitle">审核用户提交的车型评价，通过或驳回并附处理意见</p>
+        </div>
+    </div>
+
+    <div class="review-stats">
+        <div class="review-stat-card">
+            <div class="review-stat-icon review-stat-pending">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div class="review-stat-info">
+                <div class="review-stat-value" id="pendingCount">0</div>
+                <div class="review-stat-label">待审核</div>
+            </div>
+        </div>
+        <div class="review-stat-card">
+            <div class="review-stat-icon review-stat-approved">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <div class="review-stat-info">
+                <div class="review-stat-value" id="approvedCount">0</div>
+                <div class="review-stat-label">已通过</div>
+            </div>
+        </div>
+        <div class="review-stat-card">
+            <div class="review-stat-icon review-stat-rejected">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+            </div>
+            <div class="review-stat-info">
+                <div class="review-stat-value" id="rejectedCount">0</div>
+                <div class="review-stat-label">已驳回</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="review-filter-tabs">
+        <button class="review-tab-btn active" data-status="pending" onclick="switchReviewTab('pending')">
+            待审核
+        </button>
+        <button class="review-tab-btn" data-status="approved" onclick="switchReviewTab('approved')">
+            已通过
+        </button>
+        <button class="review-tab-btn" data-status="rejected" onclick="switchReviewTab('rejected')">
+            已驳回
+        </button>
+    </div>
+
+    <div id="reviewListContainer" class="review-list-container">
+        <div class="review-list-loading">加载中...</div>
+    </div>
+</div>
+
+<!-- Review Modal -->
+<div id="reviewModal" class="modal-overlay" style="display: none; z-index: 2500;">
+    <div class="modal review-modal">
+        <h4 id="reviewModalTitle">审核评价</h4>
+        <div id="reviewModalContent" class="review-modal-content"></div>
+        <div class="form-group" style="text-align: left;">
+            <label>处理意见 <span style="color: #f43f5e;">*</span></label>
+            <textarea id="adminNoteInput" placeholder="请输入处理意见（驳回时必填）" rows="3" maxlength="200"></textarea>
+            <div class="char-count"><span id="adminNoteCharCount">0</span>/200</div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn" style="background: #334155;" onclick="closeReviewModal()">取消</button>
+            <button class="btn btn-review-reject" onclick="executeReview('reject')">驳回</button>
+            <button class="btn btn-review-approve" onclick="executeReview('approve')">通过</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentTab = 'pending';
+let currentReviewId = null;
+
+window.addEventListener('load', () => {
+    loadReviewStats();
+    loadReviewList('pending');
+});
+
+async function loadReviewStats() {
+    try {
+        const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+            fetch('/api/admin/reviews?status=pending'),
+            fetch('/api/admin/reviews?status=approved'),
+            fetch('/api/admin/reviews?status=rejected')
+        ]);
+        
+        const [pending, approved, rejected] = await Promise.all([
+            pendingRes.json(),
+            approvedRes.json(),
+            rejectedRes.json()
+        ]);
+
+        document.getElementById('pendingCount').textContent = pending.length;
+        document.getElementById('approvedCount').textContent = approved.length;
+        document.getElementById('rejectedCount').textContent = rejected.length;
+    } catch (e) {
+        console.error('Failed to load stats:', e);
+    }
+}
+
+function switchReviewTab(status) {
+    currentTab = status;
+    document.querySelectorAll('.review-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.status === status);
+    });
+    loadReviewList(status);
+}
+
+async function loadReviewList(status) {
+    const container = document.getElementById('reviewListContainer');
+    container.innerHTML = '<div class="review-list-loading">加载中...</div>';
+
+    try {
+        const res = await fetch(`/api/admin/reviews?status=${status}`);
+        const reviews = await res.json();
+
+        if (reviews.length === 0) {
+            container.innerHTML = `
+                <div class="review-empty-state">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.3; margin-bottom: 16px;">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <p>暂无${status === 'pending' ? '待审核' : status === 'approved' ? '已通过' : '已驳回'}的评价</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = reviews.map(r => `
+            <div class="review-card" data-id="${r.id}">
+                <div class="review-card-header">
+                    <div class="review-user-info">
+                        <div class="review-avatar">${r.username.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <div class="review-username">${r.username}</div>
+                            <div class="review-time">${r.created_at}</div>
+                        </div>
+                    </div>
+                    <div class="review-car-info">
+                        <span class="review-car-brand">${r.brand}</span>
+                        <span class="review-car-model">${r.model_name}</span>
+                    </div>
+                </div>
+                <div class="review-card-body">
+                    <div class="review-rating-display">
+                        ${renderStars(r.rating)}
+                        <span class="review-rating-value">${r.rating}.0</span>
+                    </div>
+                    <div class="review-comment">${r.comment}</div>
+                    ${r.admin_note ? `<div class="review-admin-note"><strong>处理意见：</strong>${r.admin_note}</div>` : ''}
+                </div>
+                ${status === 'pending' ? `
+                <div class="review-card-actions">
+                    <button class="btn btn-sm btn-review-reject" onclick="openReviewModal(${r.id}, '${r.username}', '${r.brand} ${r.model_name}', ${r.rating}, '${r.comment.replace(/'/g, "\\'")}')">
+                        驳回
+                    </button>
+                    <button class="btn btn-sm btn-review-approve" onclick="quickApprove(${r.id})">
+                        通过
+                    </button>
+                </div>
+                ` : `
+                <div class="review-card-footer">
+                    <span class="review-status review-${r.status}">
+                        ${r.status === 'approved' ? '已通过' : '已驳回'}
+                    </span>
+                    <span class="review-reviewer">审核人：${r.reviewer_name || '-'}</span>
+                    <span class="review-reviewed-at">${r.reviewed_at || '-'}</span>
+                </div>
+                `}
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = '<div class="review-list-error">加载失败，请重试</div>';
+    }
+}
+
+function renderStars(rating) {
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+        if (i <= rating) {
+            html += '<span class="star-display star-full">★</span>';
+        } else {
+            html += '<span class="star-display star-empty">★</span>';
+        }
+    }
+    return html;
+}
+
+function openReviewModal(id, username, carModel, rating, comment) {
+    currentReviewId = id;
+    document.getElementById('reviewModalTitle').textContent = '审核评价';
+    document.getElementById('reviewModalContent').innerHTML = `
+        <div class="review-modal-info">
+            <div class="review-modal-row">
+                <span class="review-modal-label">用户：</span>
+                <span class="review-modal-value">${username}</span>
+            </div>
+            <div class="review-modal-row">
+                <span class="review-modal-label">车型：</span>
+                <span class="review-modal-value">${carModel}</span>
+            </div>
+            <div class="review-modal-row">
+                <span class="review-modal-label">评分：</span>
+                <span class="review-modal-value">${renderStars(rating)} ${rating}.0</span>
+            </div>
+            <div class="review-modal-row">
+                <span class="review-modal-label">评价：</span>
+            </div>
+            <div class="review-modal-comment">${comment}</div>
+        </div>
+    `;
+    document.getElementById('adminNoteInput').value = '';
+    document.getElementById('adminNoteCharCount').textContent = '0';
+    document.getElementById('reviewModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('adminNoteInput').focus(), 100);
+}
+
+function closeReviewModal() {
+    document.getElementById('reviewModal').style.display = 'none';
+    currentReviewId = null;
+}
+
+function quickApprove(id) {
+    currentReviewId = id;
+    document.getElementById('adminNoteInput').value = '';
+    executeReview('approve');
+}
+
+async function executeReview(action) {
+    if (!currentReviewId) return;
+
+    const adminNote = document.getElementById('adminNoteInput').value.trim();
+
+    if (action === 'reject' && !adminNote) {
+        showToast('驳回时请填写处理意见', 'danger');
+        document.getElementById('adminNoteInput').focus();
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/admin/reviews/${currentReviewId}/review`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: action,
+                admin_note: adminNote
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast(data.message, 'success');
+            closeReviewModal();
+            loadReviewStats();
+            loadReviewList(currentTab);
+        } else {
+            showToast(data.error || '操作失败', 'danger');
+        }
+    } catch (e) {
+        showToast('操作失败，请重试', 'danger');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const noteInput = document.getElementById('adminNoteInput');
+    if (noteInput) {
+        noteInput.addEventListener('input', () => {
+            document.getElementById('adminNoteCharCount').textContent = noteInput.value.length;
+        });
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeReviewModal();
+    }
+});
+
+const reviewModalOverlay = document.getElementById('reviewModal');
+if (reviewModalOverlay) {
+    reviewModalOverlay.addEventListener('click', (e) => {
+        if (e.target === reviewModalOverlay) closeReviewModal();
+    });
+}
+</script>
+{% endblock %}

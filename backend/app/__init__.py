@@ -74,6 +74,35 @@ def create_app():
             except Exception as e:
                 print("Migration notice (ChargingPile.period):", e)
         
+        # Migration: Create car_review table if it doesn't exist
+        try:
+            from sqlalchemy import text
+            db.session.execute(text('SELECT id FROM car_review LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE car_review (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        car_model_id INTEGER NOT NULL,
+                        rating INTEGER NOT NULL,
+                        comment TEXT NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        admin_note TEXT,
+                        reviewed_at DATETIME,
+                        reviewer_id INTEGER,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES user (id),
+                        FOREIGN KEY (car_model_id) REFERENCES car_model (id),
+                        FOREIGN KEY (reviewer_id) REFERENCES user (id),
+                        UNIQUE (user_id, car_model_id)
+                    )
+                """))
+                db.session.commit()
+            except Exception as e:
+                print("Migration notice (car_review):", e)
+        
         # Automatic Admin Creation
         admin = models.User.query.filter_by(username='admin').first()
         if not admin:

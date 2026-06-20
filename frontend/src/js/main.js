@@ -65,39 +65,6 @@ function getFilterParams() {
     return url;
 }
 
-async function loadBarChart() {
-    const params = getFilterParams();
-    const res = await fetch(`/api/chart/bar${params}`);
-    const data = await res.json();
-
-    const brand = document.getElementById('brandFilter').value;
-
-    const tbody = document.getElementById('dashboardTableBody');
-    if (tbody) {
-        tbody.innerHTML = data.models.map((m, i) => `
-            <tr>
-                <td style="color: #fff; font-weight: 500;">${m}</td>
-                <td>${data.range[i]} km</td>
-                <td>${data.price[i]} 万</td>
-                <td>${data.power[i]}</td>
-            </tr>
-        `).join('');
-    }
-
-    charts.barChart.setOption({
-        tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#fff' } },
-        legend: { data: ['续航 (km)', '价格 (万元)', '百公里电耗'], textStyle: { color: '#94a3b8' }, top: 'bottom' },
-        xAxis: { type: 'category', data: data.models, axisLabel: { color: '#94a3b8', interval: 0, rotate: 30 } },
-        yAxis: { splitLine: { lineStyle: { color: '#334155' } } },
-        grid: { bottom: '20%' },
-        series: [
-            { name: '续航 (km)', type: 'bar', data: data.range, itemStyle: { borderRadius: [4, 4, 0, 0] } },
-            { name: '价格 (万元)', type: 'bar', data: data.price, itemStyle: { borderRadius: [4, 4, 0, 0] } },
-            { name: '百公里电耗', type: 'bar', data: data.power, itemStyle: { borderRadius: [4, 4, 0, 0] } }
-        ]
-    });
-}
-
 async function loadLineChart() {
     const brand = document.getElementById('brandFilter').value;
     const res = await fetch(`/api/chart/line?brand=${brand}`);
@@ -1222,6 +1189,292 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshNotificationBadge();
             runBackgroundAlertCheck();
         }, 60000);
+    }
+});
+
+// ============ Car Review System ============
+
+let currentSelectedCar = null;
+let currentRating = 0;
+
+async function loadBarChart() {
+    const params = getFilterParams();
+    const res = await fetch(`/api/chart/bar${params}`);
+    const data = await res.json();
+
+    const brand = document.getElementById('brandFilter').value;
+
+    const tbody = document.getElementById('dashboardTableBody');
+    if (tbody) {
+        tbody.innerHTML = data.models.map((m, i) => `
+            <tr onclick="openCarSidebar(${data.model_ids[i]}, '${m}', '${data.brands[i]}', ${data.range[i]}, ${data.price[i]}, ${data.power[i]})" style="cursor: pointer;">
+                <td style="color: #fff; font-weight: 500;">${m}</td>
+                <td>${data.range[i]} km</td>
+                <td>${data.price[i]} 万</td>
+                <td>${data.power[i]}</td>
+            </tr>
+        `).join('');
+    }
+
+    charts.barChart.setOption({
+        tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#fff' } },
+        legend: { data: ['续航 (km)', '价格 (万元)', '百公里电耗'], textStyle: { color: '#94a3b8' }, top: 'bottom' },
+        xAxis: { type: 'category', data: data.models, axisLabel: { color: '#94a3b8', interval: 0, rotate: 30 } },
+        yAxis: { splitLine: { lineStyle: { color: '#334155' } } },
+        grid: { bottom: '20%' },
+        series: [
+            { name: '续航 (km)', type: 'bar', data: data.range, itemStyle: { borderRadius: [4, 4, 0, 0] } },
+            { name: '价格 (万元)', type: 'bar', data: data.price, itemStyle: { borderRadius: [4, 4, 0, 0] } },
+            { name: '百公里电耗', type: 'bar', data: data.power, itemStyle: { borderRadius: [4, 4, 0, 0] } }
+        ]
+    });
+}
+
+function openCarSidebar(carId, modelName, brand, range, price, power) {
+    currentSelectedCar = {
+        id: carId,
+        modelName: modelName,
+        brand: brand,
+        range: range,
+        price: price,
+        power: power
+    };
+
+    document.getElementById('carBasicInfo').innerHTML = `
+        <h3 class="sidebar-car-title">${brand} ${modelName}</h3>
+        <div class="sidebar-car-specs">
+            <div class="spec-item">
+                <span class="spec-label">续航</span>
+                <span class="spec-value">${range} km</span>
+            </div>
+            <div class="spec-item">
+                <span class="spec-label">价格</span>
+                <span class="spec-value">${price} 万</span>
+            </div>
+            <div class="spec-item">
+                <span class="spec-label">电耗</span>
+                <span class="spec-value">${power} kWh</span>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('carDetailSidebar').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    loadRatingSummary(carId);
+    loadMyReview(carId);
+    resetReviewForm();
+}
+
+function closeCarSidebar() {
+    document.getElementById('carDetailSidebar').classList.remove('open');
+    document.body.style.overflow = '';
+    currentSelectedCar = null;
+}
+
+async function loadRatingSummary(carId) {
+    const summaryEl = document.getElementById('ratingSummary');
+    summaryEl.innerHTML = '<div class="rating-summary-loading">加载中...</div>';
+
+    try {
+        const res = await fetch(`/api/reviews/summary/${carId}`);
+        const data = await res.json();
+
+        const starsHtml = renderStars(data.avg_rating);
+        summaryEl.innerHTML = `
+            <div class="rating-score">${data.avg_rating > 0 ? data.avg_rating.toFixed(1) : '--'}</div>
+            <div class="rating-stars-display">${starsHtml}</div>
+            <div class="rating-count">共 ${data.review_count} 条用户评价</div>
+        `;
+    } catch (e) {
+        summaryEl.innerHTML = '<div class="rating-summary-error">加载失败</div>';
+    }
+}
+
+function renderStars(rating) {
+    let html = '';
+    const fullStars = Math.floor(rating);
+    const hasHalf = rating - fullStars >= 0.5;
+
+    for (let i = 1; i <= 5; i++) {
+        if (i <= fullStars) {
+            html += '<span class="star-display star-full">★</span>';
+        } else if (i === fullStars + 1 && hasHalf) {
+            html += '<span class="star-display star-half">★</span>';
+        } else {
+            html += '<span class="star-display star-empty">★</span>';
+        }
+    }
+    return html;
+}
+
+async function loadMyReview(carId) {
+    const statusEl = document.getElementById('myReviewStatus');
+    statusEl.innerHTML = '';
+
+    try {
+        const res = await fetch(`/api/reviews/my/${carId}`);
+        const data = await res.json();
+
+        if (data.review) {
+            const review = data.review;
+            let statusBadge = '';
+            if (review.status === 'pending') {
+                statusBadge = '<span class="review-status review-pending">待审核</span>';
+            } else if (review.status === 'approved') {
+                statusBadge = '<span class="review-status review-approved">已通过</span>';
+            } else if (review.status === 'rejected') {
+                statusBadge = '<span class="review-status review-rejected">已驳回</span>';
+            }
+
+            let adminNote = '';
+            if (review.admin_note) {
+                adminNote = `<div class="admin-note">处理意见：${review.admin_note}</div>`;
+            }
+
+            statusEl.innerHTML = `
+                <div class="existing-review">
+                    <div class="existing-review-header">
+                        <span>您之前的评价</span>
+                        ${statusBadge}
+                    </div>
+                    <div class="existing-review-rating">${renderStars(review.rating)}</div>
+                    <div class="existing-review-comment">${review.comment}</div>
+                    ${adminNote}
+                    <div class="existing-review-time">提交时间：${review.updated_at}</div>
+                    <div class="review-overwrite-hint">再次提交将覆盖当前评价</div>
+                </div>
+            `;
+
+            setRating(review.rating);
+            document.getElementById('reviewComment').value = review.comment;
+            updateCharCount();
+        }
+    } catch (e) {
+        console.error('Failed to load my review:', e);
+    }
+}
+
+function resetReviewForm() {
+    currentRating = 0;
+    document.querySelectorAll('#starRating .star').forEach(s => {
+        s.classList.remove('active', 'hover');
+    });
+    document.getElementById('reviewComment').value = '';
+    updateCharCount();
+}
+
+function setupStarRating() {
+    const stars = document.querySelectorAll('#starRating .star');
+    
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseover', () => {
+            stars.forEach((s, i) => {
+                if (i <= index) {
+                    s.classList.add('hover');
+                } else {
+                    s.classList.remove('hover');
+                }
+            });
+        });
+
+        star.addEventListener('mouseout', () => {
+            stars.forEach(s => s.classList.remove('hover'));
+        });
+
+        star.addEventListener('click', () => {
+            const value = parseInt(star.dataset.value);
+            setRating(value);
+        });
+    });
+
+    const commentInput = document.getElementById('reviewComment');
+    if (commentInput) {
+        commentInput.addEventListener('input', updateCharCount);
+    }
+}
+
+function setRating(value) {
+    currentRating = value;
+    const stars = document.querySelectorAll('#starRating .star');
+    stars.forEach((s, i) => {
+        if (i < value) {
+            s.classList.add('active');
+        } else {
+            s.classList.remove('active');
+        }
+    });
+}
+
+function updateCharCount() {
+    const comment = document.getElementById('reviewComment');
+    const count = document.getElementById('charCount');
+    if (comment && count) {
+        count.textContent = comment.value.length;
+    }
+}
+
+async function submitReview() {
+    if (!currentSelectedCar) {
+        showToast('请先选择车型', 'danger');
+        return;
+    }
+
+    if (currentRating === 0) {
+        showToast('请选择评分', 'danger');
+        return;
+    }
+
+    const comment = document.getElementById('reviewComment').value.trim();
+    if (!comment) {
+        showToast('请填写评价内容', 'danger');
+        return;
+    }
+
+    const btn = document.getElementById('submitReviewBtn');
+    btn.disabled = true;
+    btn.textContent = '提交中...';
+
+    try {
+        const res = await fetch('/api/reviews', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                car_model_id: currentSelectedCar.id,
+                rating: currentRating,
+                comment: comment
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast(data.message, 'success');
+            loadRatingSummary(currentSelectedCar.id);
+            loadMyReview(currentSelectedCar.id);
+        } else {
+            showToast(data.error || '提交失败', 'danger');
+        }
+    } catch (e) {
+        showToast('提交失败，请重试', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '提交评价';
+    }
+}
+
+window.addEventListener('load', () => {
+    if (document.getElementById('starRating')) {
+        setupStarRating();
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const sidebar = document.getElementById('carDetailSidebar');
+        if (sidebar && sidebar.classList.contains('open')) {
+            closeCarSidebar();
+        }
     }
 });
 
