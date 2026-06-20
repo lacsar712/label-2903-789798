@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}注册{% endblock %}
+{% block title %}<span data-i18n="register_title">新用户注册</span>{% endblock %}
 {% block content %}
 <div class="auth-wrapper">
     <div class="auth-card">
-        <h2>新用户注册</h2>
+        <h2 data-i18n="register_title">新用户注册</h2>
         <form method="POST">
             <div class="form-group">
-                <label>用户名</label>
-                <input type="text" name="username" placeholder="建议使用中/英文" required>
+                <label data-i18n="register_username">用户名</label>
+                <input type="text" name="username" data-i18n-placeholder="register_username_placeholder" placeholder="建议使用中/英文" required>
             </div>
             <div class="form-group">
-                <label>密码</label>
-                <input type="password" name="password" placeholder="最少6位字符" required>
+                <label data-i18n="register_password">密码</label>
+                <input type="password" name="password" data-i18n-placeholder="register_password_placeholder" placeholder="最少6位字符" required>
             </div>
-            <button type="submit" class="btn">完成注册</button>
+            <button type="submit" class="btn" data-i18n="register_submit">完成注册</button>
         </form>
-        <p>已有账号？ <a href="{{ url_for('main.login') }}">立即登录</a></p>
+        <p><span data-i18n="register_has_account">已有账号？</span> <a href="{{ url_for('main.login') }}" data-i18n="register_login_now">立即登录</a></p>
     </div>
 </div>
 {% endblock %}

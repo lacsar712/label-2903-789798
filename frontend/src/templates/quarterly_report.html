@@ -5,7 +5,7 @@
     <div class="report-control-panel" id="controlPanel">
         <div class="ranking-header">
             <div class="ranking-header-left">
-                <h2 class="ranking-title">
+                <h2 class="ranking-title" data-i18n="report_title">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14 2 14 8 20 8"/>
@@ -15,11 +15,11 @@
                     </svg>
                     季度复盘报告
                 </h2>
-                <p class="ranking-subtitle">管理员专用 · 一键生成结构化季度复盘文档 · 支持打印导出</p>
+                <p class="ranking-subtitle" data-i18n="report_subtitle">管理员专用 · 一键生成结构化季度复盘文档 · 支持打印导出</p>
             </div>
             <div class="ranking-header-right">
                 <div class="report-actions" id="reportActions" style="display: none;">
-                    <button class="btn btn-sm" onclick="window.print()" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                    <button class="btn btn-sm" onclick="window.print()" style="background: linear-gradient(135deg, #10b981, #34d399);" data-i18n="report_btn_print">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
                             <polyline points="6 9 6 2 18 2 18 9"/>
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
@@ -27,7 +27,7 @@
                         </svg>
                         打印 / 导出PDF
                     </button>
-                    <button class="btn btn-sm" onclick="regenerateReport()">
+                    <button class="btn btn-sm" onclick="regenerateReport()" data-i18n="report_btn_regenerate">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
                             <polyline points="23 4 23 10 17 10"/>
                             <polyline points="1 20 1 14 7 14"/>
@@ -41,17 +41,17 @@
 
         <div class="filter-pane" style="margin-top: 20px;">
             <div class="filter-group">
-                <label>目标季度 *</label>
+                <label data-i18n="report_label_period">目标季度 *</label>
                 <select id="periodSelect">
-                    <option value="">-- 请选择季度 --</option>
+                    <option value="" data-i18n="report_period_placeholder">-- 请选择季度 --</option>
                 </select>
             </div>
             <div class="filter-group" style="min-width: 300px; flex: 1; max-width: 450px;">
-                <label>品牌范围（可选，留空为全部品牌）</label>
+                <label data-i18n="report_label_brands">品牌范围（可选，留空为全部品牌）</label>
                 <div id="brandCheckboxes" style="display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 0; min-height: 38px;">
                 </div>
             </div>
-            <button onclick="generateReport()" class="btn" id="generateBtn" style="margin-left: auto;">
+            <button onclick="generateReport()" class="btn" id="generateBtn" style="margin-left: auto;" data-i18n="report_btn_generate">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
                     <path d="M12 20h9"/>
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
@@ -68,8 +68,8 @@
             <line x1="16" y1="13" x2="8" y2="13"/>
             <line x1="16" y1="17" x2="8" y2="17"/>
         </svg>
-        <h3 style="font-size: 20px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600;">暂无报告内容</h3>
-        <p style="color: var(--text-secondary); font-size: 14px;">请选择目标季度并点击「生成报告」按钮</p>
+        <h3 style="font-size: 20px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600;" data-i18n="report_empty_title">暂无报告内容</h3>
+        <p style="color: var(--text-secondary); font-size: 14px;" data-i18n="report_empty_hint">请选择目标季度并点击「生成报告」按钮</p>
     </div>
 
     <div class="report-container" id="reportContainer" style="display: none;">
@@ -86,27 +86,27 @@
                         </div>
                         <span class="cover-logo-text">NEV QUANTUM</span>
                     </div>
-                    <h1 class="report-main-title" id="reportMainTitle">新能源汽车季度复盘报告</h1>
+                    <h1 class="report-main-title" id="reportMainTitle" data-i18n="report_main_title_default">新能源汽车季度复盘报告</h1>
                     <div class="report-period-badge" id="periodBadge">2024 Q1</div>
                     <div class="cover-meta">
                         <div class="cover-meta-item">
-                            <span class="cover-meta-label">报告范围</span>
+                            <span class="cover-meta-label" data-i18n="report_scope_label">报告范围</span>
                             <span class="cover-meta-value" id="scopeValue">全部品牌</span>
                         </div>
                         <div class="cover-meta-divider"></div>
                         <div class="cover-meta-item">
-                            <span class="cover-meta-label">生成时间</span>
+                            <span class="cover-meta-label" data-i18n="report_gen_time_label">生成时间</span>
                             <span class="cover-meta-value" id="genTimeValue">--</span>
                         </div>
                         <div class="cover-meta-divider"></div>
                         <div class="cover-meta-item">
-                            <span class="cover-meta-label">编制人</span>
+                            <span class="cover-meta-label" data-i18n="report_gen_user_label">编制人</span>
                             <span class="cover-meta-value" id="genUserValue">--</span>
                         </div>
                     </div>
                 </div>
                 <div class="cover-footer">
-                    <span>机密文件 · 仅供内部使用</span>
+                    <span data-i18n="report_confidential">机密文件 · 仅供内部使用</span>
                 </div>
             </section>
 
@@ -116,15 +116,15 @@
                 <div class="section-header">
                     <div class="section-number">01</div>
                     <div class="section-title-wrap">
-                        <h2 class="section-title">销量总览</h2>
-                        <p class="section-subtitle">Sales Overview · 季度核心指标一览</p>
+                        <h2 class="section-title" data-i18n="report_section1_title">销量总览</h2>
+                        <p class="section-subtitle" data-i18n="report_section1_subtitle">Sales Overview · 季度核心指标一览</p>
                     </div>
                 </div>
                 <div class="overview-grid" id="overviewGrid">
                 </div>
                 <div class="overview-chart-wrap">
                     <div class="chart-card" style="height: 320px; margin: 0;">
-                        <h3>品牌销量对比 TOP5</h3>
+                        <h3 data-i18n="report_chart_bar_title">品牌销量对比 TOP5</h3>
                         <div id="overviewBarChart" class="chart-box" style="height: 260px;"></div>
                     </div>
                 </div>
@@ -136,21 +136,21 @@
                 <div class="section-header">
                     <div class="section-number">02</div>
                     <div class="section-title-wrap">
-                        <h2 class="section-title">品牌前五榜单</h2>
-                        <p class="section-subtitle">Top 5 Brands · 销量排行与市场份额</p>
+                        <h2 class="section-title" data-i18n="report_section2_title">品牌前五榜单</h2>
+                        <p class="section-subtitle" data-i18n="report_section2_subtitle">Top 5 Brands · 销量排行与市场份额</p>
                     </div>
                 </div>
                 <div class="brand-ranking-table-wrap">
                     <table class="brand-ranking-table" id="brandRankingTable">
                         <thead>
                             <tr>
-                                <th style="width: 70px;">排名</th>
-                                <th>品牌</th>
-                                <th style="width: 120px; text-align: right;">季度销量</th>
-                                <th style="width: 100px; text-align: right;">市场份额</th>
-                                <th style="width: 100px; text-align: right;">环比变化</th>
-                                <th style="width: 100px; text-align: right;">在售车型</th>
-                                <th style="width: 200px;">热销车型</th>
+                                <th style="width: 70px;" data-i18n="report_col_rank">排名</th>
+                                <th data-i18n="report_col_brand">品牌</th>
+                                <th style="width: 120px; text-align: right;" data-i18n="report_col_quarter_sales">季度销量</th>
+                                <th style="width: 100px; text-align: right;" data-i18n="report_col_market_share">市场份额</th>
+                                <th style="width: 100px; text-align: right;" data-i18n="report_col_qoq_change">环比变化</th>
+                                <th style="width: 100px; text-align: right;" data-i18n="report_col_models">在售车型</th>
+                                <th style="width: 200px;" data-i18n="report_col_top_model">热销车型</th>
                             </tr>
                         </thead>
                         <tbody id="brandRankingBody">
@@ -158,7 +158,7 @@
                     </table>
                 </div>
                 <div class="sub-section">
-                    <h3 class="sub-section-title">车型销量 TOP5</h3>
+                    <h3 class="sub-section-title" data-i18n="report_sub_top_models">车型销量 TOP5</h3>
                     <div class="top-models-list" id="topModelsList">
                     </div>
                 </div>
@@ -170,19 +170,19 @@
                 <div class="section-header">
                     <div class="section-number">03</div>
                     <div class="section-title-wrap">
-                        <h2 class="section-title">各省热力缩略</h2>
-                        <p class="section-subtitle">Regional Heatmap · 全国销量分布概览</p>
+                        <h2 class="section-title" data-i18n="report_section3_title">各省热力缩略</h2>
+                        <p class="section-subtitle" data-i18n="report_section3_subtitle">Regional Heatmap · 全国销量分布概览</p>
                     </div>
                 </div>
                 <div class="region-layout">
                     <div class="region-map-wrap">
                         <div class="chart-card" style="height: 420px; margin: 0;">
-                            <h3>全国销量热力分布</h3>
+                            <h3 data-i18n="report_map_title">全国销量热力分布</h3>
                             <div id="provinceMapChart" class="chart-box" style="height: 360px;"></div>
                         </div>
                     </div>
                     <div class="region-top-list">
-                        <h3 class="sub-section-title">TOP 5 省份</h3>
+                        <h3 class="sub-section-title" data-i18n="report_sub_top_provinces">TOP 5 省份</h3>
                         <div class="top-province-list" id="topProvinceList">
                         </div>
                     </div>
@@ -195,8 +195,8 @@
                 <div class="section-header">
                     <div class="section-number">04</div>
                     <div class="section-title-wrap">
-                        <h2 class="section-title">电耗表现优异车型</h2>
-                        <p class="section-subtitle">Energy Efficiency · 百公里电耗低于行业均值</p>
+                        <h2 class="section-title" data-i18n="report_section4_title">电耗表现优异车型</h2>
+                        <p class="section-subtitle" data-i18n="report_section4_subtitle">Energy Efficiency · 百公里电耗低于行业均值</p>
                     </div>
                 </div>
                 <div class="eff-stats-row" id="effStatsRow">
@@ -206,13 +206,13 @@
                         <thead>
                             <tr>
                                 <th style="width: 50px;">#</th>
-                                <th>车型</th>
-                                <th style="width: 100px;">品牌</th>
-                                <th style="width: 80px;">类型</th>
-                                <th style="width: 120px; text-align: right;">百公里电耗</th>
-                                <th style="width: 100px; text-align: right;">效率评分</th>
-                                <th style="width: 100px; text-align: right;">续航里程</th>
-                                <th style="width: 100px; text-align: right;">季度销量</th>
+                                <th data-i18n="report_col_model">车型</th>
+                                <th style="width: 100px;" data-i18n="report_col_brand">品牌</th>
+                                <th style="width: 80px;" data-i18n="report_col_eff_category">类型</th>
+                                <th style="width: 120px; text-align: right;" data-i18n="report_col_eff_power">百公里电耗</th>
+                                <th style="width: 100px; text-align: right;" data-i18n="report_col_eff_score">效率评分</th>
+                                <th style="width: 100px; text-align: right;" data-i18n="report_col_eff_range">续航里程</th>
+                                <th style="width: 100px; text-align: right;" data-i18n="report_col_eff_sales">季度销量</th>
                             </tr>
                         </thead>
                         <tbody id="energyEffBody">
@@ -227,19 +227,19 @@
                 <div class="section-header">
                     <div class="section-number">05</div>
                     <div class="section-title-wrap">
-                        <h2 class="section-title">报告结语</h2>
-                        <p class="section-subtitle">Report Summary · 核心洞察提炼</p>
+                        <h2 class="section-title" data-i18n="report_section5_title">报告结语</h2>
+                        <p class="section-subtitle" data-i18n="report_section5_subtitle">Report Summary · 核心洞察提炼</p>
                     </div>
                 </div>
                 <div class="summary-insights" id="summaryInsights">
                 </div>
                 <div class="report-signature">
                     <div class="sig-line">
-                        <span class="sig-label">报告编制</span>
+                        <span class="sig-label" data-i18n="report_sig_user_label">报告编制</span>
                         <span class="sig-line-draw" id="sigUser"></span>
                     </div>
                     <div class="sig-line">
-                        <span class="sig-label">签发日期</span>
+                        <span class="sig-label" data-i18n="report_sig_date_label">签发日期</span>
                         <span class="sig-line-draw" id="sigDate"></span>
                     </div>
                 </div>
@@ -280,7 +280,7 @@ async function loadMeta() {
         });
     } catch (e) {
         console.error(e);
-        showToast('加载元数据失败', 'danger');
+        showToast(t('report_meta_load_failed'), 'danger');
     }
 }
 
@@ -291,7 +291,7 @@ function getSelectedBrands() {
 async function generateReport() {
     const period = document.getElementById('periodSelect').value;
     if (!period) {
-        showToast('请选择目标季度', 'danger');
+        showToast(t('report_period_required'), 'danger');
         return;
     }
     
@@ -301,7 +301,7 @@ async function generateReport() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px; animation: spin 1s linear infinite;">
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
         </svg>
-        生成中...
+        ${t('report_btn_generating')}
     `;
     
     try {
@@ -325,10 +325,10 @@ async function generateReport() {
         document.getElementById('reportActions').style.display = 'flex';
         document.getElementById('reportActions').style.gap = '10px';
         
-        showToast('报告生成成功！', 'success');
+        showToast(t('report_generate_success'), 'success');
     } catch (e) {
         console.error(e);
-        showToast(e.message || '报告生成失败', 'danger');
+        showToast(e.message || t('report_generate_failed'), 'danger');
     } finally {
         btn.disabled = false;
         btn.innerHTML = `
@@ -336,7 +336,7 @@ async function generateReport() {
                 <path d="M12 20h9"/>
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
             </svg>
-            生成报告
+            ${t('report_btn_generate')}
         `;
     }
 }
@@ -351,9 +351,9 @@ function renderReport() {
     const info = reportData.report_info;
     const overview = reportData.sales_overview;
     
-    document.getElementById('reportMainTitle').textContent = `${info.period} 新能源汽车季度复盘报告`;
+    document.getElementById('reportMainTitle').textContent = `${info.period}${t('report_main_title_suffix')}`;
     document.getElementById('periodBadge').textContent = info.period;
-    document.getElementById('scopeValue').textContent = info.brands_scope.join('、');
+    document.getElementById('scopeValue').textContent = info.brands_scope && info.brands_scope.length > 0 ? info.brands_scope.join('、') : t('report_scope_all');
     document.getElementById('genTimeValue').textContent = info.generated_at;
     document.getElementById('genUserValue').textContent = info.generated_by;
     document.getElementById('sigUser').textContent = info.generated_by;
@@ -376,10 +376,10 @@ function renderOverview(ov) {
     const qoqIcon = ov.qoq_change >= 0 ? '↑' : '↓';
     
     const cards = [
-        {label: '季度总销量', value: formatNumber(ov.total_sales), unit: '辆', sub: `上季 ${formatNumber(ov.total_sales_prev)} 辆`, icon: '📦'},
-        {label: '环比变化', value: `${qoqIcon} ${Math.abs(ov.qoq_change)}`, unit: '%', sub: `较 ${reportData.report_info.prev_period}`, valueClass: qoqClass, icon: '📈'},
-        {label: '覆盖品牌', value: ov.brands_count, unit: '个', sub: `含 ${ov.models_count} 款车型`, icon: '🏷️'},
-        {label: '覆盖区域', value: ov.regions_count, unit: '省/市', sub: '全国省份统计', icon: '🗺️'},
+        {label: t('report_ov_total_sales'), value: formatNumber(ov.total_sales), unit: t('report_unit_sales'), sub: `${t('report_ov_total_sales_prev')} ${formatNumber(ov.total_sales_prev)} ${t('report_ov_total_sales_prev_suffix')}`, icon: '📦'},
+        {label: t('report_ov_qoq'), value: `${qoqIcon} ${Math.abs(ov.qoq_change)}`, unit: '%', sub: `${t('report_ov_qoq_prev_period')} ${reportData.report_info.prev_period}`, valueClass: qoqClass, icon: '📈'},
+        {label: t('report_ov_brands'), value: ov.brands_count, unit: t('report_ov_brands_suffix'), sub: `含 ${ov.models_count} ${t('report_ov_brands_models_suffix')}`, icon: '🏷️'},
+        {label: t('report_ov_regions'), value: ov.regions_count, unit: t('report_ov_regions_suffix'), sub: t('report_ov_regions_sub'), icon: '🗺️'},
     ];
     
     document.getElementById('overviewGrid').innerHTML = cards.map(c => `
@@ -419,7 +419,7 @@ function renderBrandRankings(brands) {
                     </div>
                 </td>
                 <td style="text-align: right;" class="${qoqClass}">${qoqIcon} ${Math.abs(b.qoq_change)}%</td>
-                <td style="text-align: right;">${b.model_count} 款</td>
+                <td style="text-align: right;">${b.model_count}${t('report_models_count_suffix')}</td>
                 <td>
                     <span style="color: var(--accent-color); font-weight: 500;">${b.top_model}</span>
                     <span style="color: var(--text-secondary); font-size: 12px; margin-left: 6px;">(${formatNumber(b.top_model_sales)}辆)</span>
@@ -441,7 +441,7 @@ function renderTopModels(models) {
             </div>
             <div class="tm-sales">
                 <span class="tm-sales-num">${formatNumber(m.sales)}</span>
-                <span class="tm-sales-unit">辆</span>
+                <span class="tm-sales-unit">${t('report_unit_sales')}</span>
             </div>
         </div>
     `).join('');
@@ -478,24 +478,24 @@ function renderEnergyEfficiency(effList, avgPower) {
     
     stats.innerHTML = `
         <div class="eff-stat-card">
-            <div class="es-label">上榜车型</div>
-            <div class="es-value">${totalEff}<span class="es-unit">款</span></div>
+            <div class="es-label">${t('report_es_models')}</div>
+            <div class="es-value">${totalEff}<span class="es-unit">${t('report_es_models_suffix')}</span></div>
         </div>
         <div class="eff-stat-card">
-            <div class="es-label">平均效率评分</div>
-            <div class="es-value" style="color: #10b981;">${avgScore}<span class="es-unit">分</span></div>
+            <div class="es-label">${t('report_es_avg_score')}</div>
+            <div class="es-value" style="color: #10b981;">${avgScore}<span class="es-unit">${t('report_es_avg_score_suffix')}</span></div>
         </div>
         <div class="eff-stat-card">
-            <div class="es-label">最优电耗</div>
-            <div class="es-value" style="color: #38bdf8;">${bestEff}<span class="es-unit">kWh/100km</span></div>
+            <div class="es-label">${t('report_es_best_power')}</div>
+            <div class="es-value" style="color: #38bdf8;">${bestEff}<span class="es-unit">${t('report_es_best_power_suffix')}</span></div>
         </div>
         <div class="eff-stat-card">
-            <div class="es-label">行业均值</div>
-            <div class="es-value" style="color: var(--text-secondary);">${avgPower}<span class="es-unit">kWh/100km</span></div>
+            <div class="es-label">${t('report_es_avg_power')}</div>
+            <div class="es-value" style="color: var(--text-secondary);">${avgPower}<span class="es-unit">${t('report_es_avg_power_suffix')}</span></div>
         </div>
         <div class="eff-stat-card">
-            <div class="es-label">合计季度销量</div>
-            <div class="es-value" style="color: #818cf8;">${formatNumber(totalEffSales)}<span class="es-unit">辆</span></div>
+            <div class="es-label">${t('report_es_total_sales')}</div>
+            <div class="es-value" style="color: #818cf8;">${formatNumber(totalEffSales)}<span class="es-unit">${t('report_es_total_sales_suffix')}</span></div>
         </div>
     `;
     
@@ -509,15 +509,15 @@ function renderEnergyEfficiency(effList, avgPower) {
                 <td style="font-weight: 600; color: var(--text-primary);">${e.model_name}</td>
                 <td><span style="color: var(--text-secondary);">${e.brand}</span></td>
                 <td><span class="${catClass}" style="font-size: 11px; padding: 2px 8px;">${e.category}</span></td>
-                <td style="text-align: right; font-weight: 700; color: var(--text-primary);">${e.power_consumption} <span style="color: var(--text-secondary); font-size: 11px; font-weight: 400;">kWh</span></td>
+                <td style="text-align: right; font-weight: 700; color: var(--text-primary);">${e.power_consumption} <span style="color: var(--text-secondary); font-size: 11px; font-weight: 400;">${t('report_eff_power_suffix')}</span></td>
                 <td style="text-align: right;">
                     <div class="score-bar-wrap">
                         <div class="score-bar" style="width: ${barWidth}%;"></div>
-                        <span style="color: #10b981; font-weight: 600;">${e.eff_score}分</span>
+                        <span style="color: #10b981; font-weight: 600;">${e.eff_score}${t('report_col_eff_score_suffix')}</span>
                     </div>
                 </td>
-                <td style="text-align: right;">${e.range_km} km</td>
-                <td style="text-align: right; color: var(--accent-color); font-weight: 500;">${formatNumber(e.sales)}</td>
+                <td style="text-align: right;">${e.range_km}${t('report_col_eff_range_suffix')}</td>
+                <td style="text-align: right; color: var(--accent-color); font-weight: 500;">${formatNumber(e.sales)}${t('report_unit_sales')}</td>
             </tr>
         `;
     }).join('');
@@ -532,28 +532,29 @@ function renderSummary(data) {
     const insights = [];
     
     insights.push({
-        title: '市场规模',
-        content: `本季度合计销量 <b>${formatNumber(ov.total_sales)}</b> 辆，较上一季度${ov.qoq_change >= 0 ? '增长' : '下滑'} <b style="color: ${ov.qoq_change >= 0 ? '#10b981' : '#f43f5e'}">${Math.abs(ov.qoq_change)}%</b>，覆盖 <b>${ov.brands_count}</b> 个品牌、<b>${ov.models_count}</b> 款车型。`
+        title: t('report_summary_title_market'),
+        content: `本季度合计销量 <b>${formatNumber(ov.total_sales)}</b> 辆，较上一季度${ov.qoq_change >= 0 ? t('report_summary_up') : t('report_summary_down')} <b style="color: ${ov.qoq_change >= 0 ? '#10b981' : '#f43f5e'}">${Math.abs(ov.qoq_change)}%</b>，覆盖 <b>${ov.brands_count}</b> 个品牌、<b>${ov.models_count}</b> 款车型。`
     });
     
     if (brands.length > 0) {
         const topBrand = brands[0];
+        const rank23Content = brands.length >= 2 ? `${t('report_summary_rank23_prefix')}<b>${brands[1].brand}</b>${t('report_summary_rank23_mid')}<b>${brands[2]?.brand || ''}</b>${t('report_summary_rank23_suffix')}` : '';
         insights.push({
-            title: '品牌格局',
-            content: `<b style="color: #fbbf24;">${topBrand.brand}</b> 以 <b>${formatNumber(topBrand.sales)}</b> 辆领跑市场，占据 <b>${topBrand.market_share}%</b> 份额，旗下 <b>${topBrand.top_model}</b> 为最畅销车型。${brands.length >= 2 ? `第 2-3 名分别为 <b>${brands[1].brand}</b> 与 <b>${brands[2].brand}</b>。` : ''}`
+            title: t('report_summary_title_brand'),
+            content: `<b style="color: #fbbf24;">${topBrand.brand}</b> 以 <b>${formatNumber(topBrand.sales)}</b> 辆领跑市场，占据 <b>${topBrand.market_share}%</b> 份额，旗下 <b>${topBrand.top_model}</b> 为最畅销车型。${rank23Content}`
         });
     }
     
     if (topProvinces.length > 0) {
         insights.push({
-            title: '区域热力',
+            title: t('report_summary_title_region'),
             content: `销量 TOP3 省份依次为 <b>${topProvinces[0].name.replace(/市|省|自治区/g, '')}</b>（${formatNumber(topProvinces[0].value)}辆）、<b>${topProvinces[1]?.name?.replace(/市|省|自治区/g, '') || '-'}</b> 与 <b>${topProvinces[2]?.name?.replace(/市|省|自治区/g, '') || '-'}</b>，区域集中度明显。`
         });
     }
     
     if (topEff) {
         insights.push({
-            title: '效率标杆',
+            title: t('report_summary_title_efficiency'),
             content: `<b style="color: #10b981;">${topEff.model_name}</b>（${topEff.brand}）以百公里电耗 <b>${topEff.power_consumption} kWh</b> 成为效率冠军，效率评分 <b>${topEff.eff_score} 分</b>，季度销量 <b>${formatNumber(topEff.sales)}</b> 辆，兼顾节能与市场认可。`
         });
     }
@@ -636,7 +637,7 @@ function initReportCharts() {
                     backgroundColor: '#1e293b',
                     borderColor: '#334155',
                     textStyle: { color: '#fff' },
-                    formatter: p => `${p.name}<br/>销量: ${formatNumber(p.value || 0)} 辆`
+                    formatter: p => `${p.name}<br/>${t('chart_map_tooltip_sales')}:${formatNumber(p.value || 0)}${t('chart_map_tooltip_unit_sales')}`
                 },
                 visualMap: {
                     min: 0,

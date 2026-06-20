@@ -8,23 +8,23 @@
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
                     <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                 </svg>
-                能耗排行榜
+                <span data-i18n="ranking_title">能耗排行榜</span>
             </h2>
-            <p class="ranking-subtitle">全部车型百公里电耗排名 · 点击车型跳转至回看板</p>
+            <p class="ranking-subtitle" data-i18n="ranking_subtitle">全部车型百公里电耗排名 · 点击车型跳转至回看板</p>
         </div>
         <div class="ranking-header-right">
             <div class="ranking-stats">
                 <div class="stat-item">
-                    <span class="stat-label">上榜车型</span>
+                    <span class="stat-label" data-i18n="ranking_stat_total">上榜车型</span>
                     <span class="stat-value" id="totalCount">0</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">平均电耗</span>
+                    <span class="stat-label" data-i18n="ranking_stat_avg">平均电耗</span>
                     <span class="stat-value" id="avgConsumption">0</span>
                     <span class="stat-unit">kWh/100km</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">最优电耗</span>
+                    <span class="stat-label" data-i18n="ranking_stat_best">最优电耗</span>
                     <span class="stat-value best" id="bestConsumption">0</span>
                     <span class="stat-unit">kWh/100km</span>
                 </div>
@@ -40,7 +40,7 @@
                 <rect x="14" y="14" width="7" height="7"/>
                 <rect x="3" y="14" width="7" height="7"/>
             </svg>
-            全部车型
+            <span data-i18n="ranking_tab_all">全部车型</span>
         </button>
         <button class="tab-btn" data-filter="纯电" onclick="switchFilter('纯电')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
@@ -66,29 +66,29 @@
             <line x1="3" y1="12" x2="3.01" y2="12"/>
             <line x1="3" y1="18" x2="3.01" y2="18"/>
         </svg>
-        主排序：电耗从低到高 · 点击「车重」列切换次要排序
+        <span data-i18n="ranking_sort_hint">主排序：电耗从低到高 · 点击「车重」列切换次要排序</span>
     </div>
 
     <div class="ranking-table-container">
         <table class="ranking-table">
             <thead>
                 <tr>
-                    <th style="width: 80px;">排名</th>
-                    <th>车型</th>
-                    <th style="width: 100px;">品牌</th>
-                    <th style="width: 100px;">类型</th>
-                    <th style="width: 140px;">百公里电耗</th>
+                    <th style="width: 80px;" data-i18n="ranking_th_rank">排名</th>
+                    <th data-i18n="ranking_th_model">车型</th>
+                    <th style="width: 100px;" data-i18n="ranking_th_brand">品牌</th>
+                    <th style="width: 100px;" data-i18n="ranking_th_type">类型</th>
+                    <th style="width: 140px;" data-i18n="ranking_th_power">百公里电耗</th>
                     <th class="sortable-header" onclick="toggleWeightSort()">
-                        车重
+                        <span data-i18n="ranking_th_weight">车重</span>
                         <span class="sort-icon" id="weightSortIcon">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="6 9 12 15 18 9"/>
                             </svg>
                         </span>
                     </th>
-                    <th style="width: 120px;">续航</th>
-                    <th style="width: 120px;">价格</th>
-                    <th style="width: 100px;">操作</th>
+                    <th style="width: 120px;" data-i18n="ranking_th_range">续航</th>
+                    <th style="width: 120px;" data-i18n="ranking_th_price">价格</th>
+                    <th style="width: 100px;" data-i18n="ranking_th_action">操作</th>
                 </tr>
             </thead>
             <tbody id="rankingTableBody">
@@ -102,7 +102,7 @@
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <p>暂无符合条件的车型数据</p>
+        <p data-i18n="ranking_empty">暂无符合条件的车型数据</p>
     </div>
 </div>
 
@@ -169,7 +169,7 @@ async function loadRankingData() {
         updateStats(data);
     } catch (e) {
         console.error('Failed to load ranking data:', e);
-        showToast('加载排行数据失败', 'danger');
+        showToast(t('toast_ranking_load_failed'), 'danger');
     }
 }
 
@@ -235,13 +235,13 @@ function renderRankingTable(data) {
                 </td>
                 <td>${v.weight_kg} kg</td>
                 <td>${v.range_km} km</td>
-                <td>${v.price} 万</td>
+                <td>${v.price} ${t('table_price_unit')}</td>
                 <td>
                     <button class="review-btn" onclick="goToReview('${v.brand}', '${v.model_name}')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
                             <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
-                        回看板
+                        <span data-i18n="ranking_btn_review">回看板</span>
                     </button>
                 </td>
             </tr>

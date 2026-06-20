@@ -2,8 +2,8 @@
 {% block title %}数据管理{% endblock %}
 {% block content %}
 <div class="filter-pane">
-    <h3><i class="icon"></i> 车型数据管理</h3>
-    <button onclick="openAddModal()" class="btn" style="margin-left: auto;">新增车型</button>
+    <h3><i class="icon"></i> <span data-i18n="admindata_title">车型数据管理</span></h3>
+    <button onclick="openAddModal()" class="btn" style="margin-left: auto;" data-i18n="admindata_add_btn">新增车型</button>
 </div>
 
 <div class="chart-card col-12" style="height: auto; min-height: 500px; padding: 0;">
@@ -11,14 +11,14 @@
         <table class="dashboard-table">
             <thead>
                 <tr>
-                    <th style="padding-left: 24px;">品牌</th>
-                    <th>型号</th>
-                    <th>价格 (万)</th>
-                    <th>续航 (km)</th>
-                    <th>电耗</th>
-                    <th>重量 (kg)</th>
-                    <th>类型</th>
-                    <th style="text-align: right; padding-right: 24px;">操作</th>
+                    <th style="padding-left: 24px;" data-i18n="admindata_col_brand">品牌</th>
+                    <th data-i18n="admindata_col_model">型号</th>
+                    <th data-i18n="admindata_col_price">价格 (万)</th>
+                    <th data-i18n="admindata_col_range">续航 (km)</th>
+                    <th data-i18n="admindata_col_power">电耗</th>
+                    <th data-i18n="admindata_col_weight">重量 (kg)</th>
+                    <th data-i18n="admindata_col_type">类型</th>
+                    <th style="text-align: right; padding-right: 24px;" data-i18n="admindata_col_action">操作</th>
                 </tr>
             </thead>
             <tbody id="carTableBody">
@@ -31,46 +31,46 @@
 <!-- Add/Edit Modal -->
 <div id="carModal" class="modal-overlay">
     <div class="modal" style="width: 500px; text-align: left;">
-        <h4 id="carModalTitle">编辑车型资料</h4>
+        <h4 id="carModalTitle" data-i18n="admindata_modal_edit_title">编辑车型资料</h4>
         <input type="hidden" id="carId">
         <div class="form-group">
-            <label>品牌</label>
+            <label data-i18n="admindata_label_brand">品牌</label>
             <input type="text" id="carBrand" required>
         </div>
         <div class="form-group">
-            <label>型号</label>
+            <label data-i18n="admindata_label_model">型号</label>
             <input type="text" id="carModel" required>
         </div>
         <div class="form-group" style="display: flex; gap: 15px;">
             <div style="flex: 1">
-                <label>价格 (万)</label>
+                <label data-i18n="admindata_label_price">价格 (万)</label>
                 <input type="number" id="carPrice" step="0.1" required>
             </div>
             <div style="flex: 1">
-                <label>续航 (km)</label>
+                <label data-i18n="admindata_label_range">续航 (km)</label>
                 <input type="number" id="carRange" required>
             </div>
         </div>
         <div class="form-group" style="display: flex; gap: 15px;">
             <div style="flex: 1">
-                <label>电耗 (kWh)</label>
+                <label data-i18n="admindata_label_power">电耗 (kWh)</label>
                 <input type="number" id="carPower" step="0.1" required>
             </div>
             <div style="flex: 1">
-                <label>重量 (kg)</label>
+                <label data-i18n="admindata_label_weight">重量 (kg)</label>
                 <input type="number" id="carWeight" required>
             </div>
         </div>
         <div class="form-group">
-            <label>动力类型</label>
+            <label data-i18n="admindata_label_category">动力类型</label>
             <select id="carCategory" style="width: 100%">
-                <option value="纯电">纯电</option>
-                <option value="混动">混动</option>
+                <option value="纯电" data-i18n="admindata_cat_ev">纯电</option>
+                <option value="混动" data-i18n="admindata_cat_hybrid">混动</option>
             </select>
         </div>
         <div class="modal-actions" style="margin-top: 30px;">
-            <button onclick="closeCarModal()" class="btn" style="background: #334155;">取消</button>
-            <button onclick="saveCar()" class="btn">提交保存</button>
+            <button onclick="closeCarModal()" class="btn" style="background: #334155;" data-i18n="admindata_btn_cancel">取消</button>
+            <button onclick="saveCar()" class="btn" data-i18n="admindata_btn_save">提交保存</button>
         </div>
     </div>
 </div>
@@ -91,8 +91,8 @@
                 <td>${c.category}</td>
                 <td style="text-align: right; padding-right: 24px;">
                     <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                        <button onclick='openEditModal(${JSON.stringify(c)})' class="btn" style="padding: 5px 12px; font-size: 12px; border-radius: 6px;">编辑</button>
-                        <button onclick="deleteCar(${c.id})" class="btn btn-danger" style="padding: 5px 12px; font-size: 12px; border-radius: 6px;">删除</button>
+                        <button onclick='openEditModal(${JSON.stringify(c)})' class="btn" style="padding: 5px 12px; font-size: 12px; border-radius: 6px;">${t('admindata_btn_edit')}</button>
+                        <button onclick="deleteCar(${c.id})" class="btn btn-danger" style="padding: 5px 12px; font-size: 12px; border-radius: 6px;">${t('admindata_btn_delete')}</button>
                     </div>
                 </td>
             </tr>
@@ -100,7 +100,7 @@
     }
 
     function openAddModal() {
-        document.getElementById('carModalTitle').innerText = '新增车型资料';
+        document.getElementById('carModalTitle').innerText = t('admindata_modal_add_title');
         document.getElementById('carId').value = '';
         document.getElementById('carBrand').value = '';
         document.getElementById('carModel').value = '';
@@ -113,7 +113,7 @@
     }
 
     function openEditModal(c) {
-        document.getElementById('carModalTitle').innerText = '编辑车型资料';
+        document.getElementById('carModalTitle').innerText = t('admindata_modal_edit_title');
         document.getElementById('carId').value = c.id;
         document.getElementById('carBrand').value = c.brand;
         document.getElementById('carModel').value = c.model_name;
@@ -151,22 +151,22 @@
         });
 
         if (res.ok) {
-            showToast('保存成功', 'success');
+            showToast(t('admindata_save_success'), 'success');
             closeCarModal();
             loadCars();
         } else {
-            showToast('保存失败', 'danger');
+            showToast(t('admindata_save_failed'), 'danger');
         }
     }
 
     async function deleteCar(id) {
-        showModal('确认删除', '确定要删除这条车型记录吗？', async () => {
+        showModal(t('admindata_delete_confirm_title'), t('admindata_delete_confirm_msg'), async () => {
             const res = await fetch(`/api/admin/cars/${id}`, { method: 'DELETE' });
             if (res.ok) {
-                showToast('已删除', 'success');
+                showToast(t('admindata_delete_success'), 'success');
                 loadCars();
             } else {
-                showToast('删除失败', 'danger');
+                showToast(t('admindata_delete_failed'), 'danger');
             }
         });
     }

@@ -71,6 +71,43 @@ body::before {
     color: var(--accent-color);
 }
 
+.lang-switch-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 30px;
+}
+
+.lang-switch-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.lang-switch-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.lang-switch-btn.active {
+    color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.1);
+    font-weight: 600;
+}
+
+.lang-divider {
+    color: var(--glass-border);
+    font-size: 14px;
+    user-select: none;
+}
+
 .container {
     padding: 40px;
     max-width: 1600px;

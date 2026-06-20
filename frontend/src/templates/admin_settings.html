@@ -1,31 +1,31 @@
 {% extends "base.html" %}
-{% block title %}系统设置{% endblock %}
+{% block title %}<span data-i18n="nav_admin_settings">系统设置</span>{% endblock %}
 {% block content %}
 <div class="filter-pane">
-    <h3><i class="icon"></i> 系统外观设置</h3>
+    <h3><i class="icon"></i> <span data-i18n="settings_title">系统外观设置</span></h3>
 </div>
 
 <div class="chart-card col-12" style="height: auto; min-height: auto; padding: 30px;">
     <div class="settings-form">
         <div class="form-group">
-            <label>站点标题文案</label>
-            <input type="text" id="siteTitle" placeholder="请输入站点标题" maxlength="50">
-            <p class="form-hint">显示在浏览器标签页和导航栏中，保存后用户刷新页面即可看到变化</p>
+            <label data-i18n="settings_site_title_label">站点标题文案</label>
+            <input type="text" id="siteTitle" data-i18n-placeholder="settings_site_title_placeholder" placeholder="请输入站点标题" maxlength="50">
+            <p class="form-hint" data-i18n="settings_site_title_hint">显示在浏览器标签页和导航栏中，保存后用户刷新页面即可看到变化</p>
         </div>
 
         <div class="form-group">
-            <label>新用户默认城市</label>
+            <label data-i18n="settings_default_city_label">新用户默认城市</label>
             <select id="defaultCity" style="width: 100%;">
                 <option value="北京">北京</option>
                 <option value="上海">上海</option>
                 <option value="广东">广东</option>
                 <option value="浙江">浙江</option>
             </select>
-            <p class="form-hint">仅作用于尚未设定个人偏好或未通过链接指定城市的新访客</p>
+            <p class="form-hint" data-i18n="settings_default_city_hint">仅作用于尚未设定个人偏好或未通过链接指定城市的新访客</p>
         </div>
 
         <div class="form-group">
-            <label>地图热力配色方案</label>
+            <label data-i18n="settings_map_scheme_label">地图热力配色方案</label>
             <div class="color-scheme-options">
                 <div class="color-scheme-option" data-scheme="cool" onclick="selectColorScheme('cool')">
                     <div class="color-preview cool-preview">
@@ -34,7 +34,7 @@
                         <div class="color-bar" style="background: #818cf8;"></div>
                         <div class="color-bar" style="background: #a78bfa;"></div>
                     </div>
-                    <span class="color-scheme-label">冷色调</span>
+                    <span class="color-scheme-label" data-i18n="settings_scheme_cool">冷色调</span>
                     <div class="color-scheme-check" id="coolCheck">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                             <polyline points="20 6 9 17 4 12"></polyline>
@@ -48,7 +48,7 @@
                         <div class="color-bar" style="background: #f97316;"></div>
                         <div class="color-bar" style="background: #ef4444;"></div>
                     </div>
-                    <span class="color-scheme-label">暖色调</span>
+                    <span class="color-scheme-label" data-i18n="settings_scheme_warm">暖色调</span>
                     <div class="color-scheme-check" id="warmCheck" style="display: none;">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                             <polyline points="20 6 9 17 4 12"></polyline>
@@ -56,22 +56,22 @@
                     </div>
                 </div>
             </div>
-            <p class="form-hint">选择地图热力图的配色风格，保存后用户刷新页面即可看到变化</p>
+            <p class="form-hint" data-i18n="settings_map_scheme_hint">选择地图热力图的配色风格，保存后用户刷新页面即可看到变化</p>
         </div>
 
         <div class="form-group">
             <label class="switch-label">
-                <span>开放自助注册</span>
+                <span data-i18n="settings_self_register_label">开放自助注册</span>
                 <label class="switch">
                     <input type="checkbox" id="selfRegistrationEnabled">
                     <span class="slider"></span>
                 </label>
             </label>
-            <p class="form-hint">开启后访客可自行注册账号；关闭后仅管理员可创建用户</p>
+            <p class="form-hint" data-i18n="settings_self_register_hint">开启后访客可自行注册账号；关闭后仅管理员可创建用户</p>
         </div>
 
         <div class="form-actions">
-            <button onclick="saveSettings()" class="btn btn-primary" id="saveBtn">保存设置</button>
+            <button onclick="saveSettings()" class="btn btn-primary" id="saveBtn" data-i18n="settings_save_btn">保存设置</button>
         </div>
     </div>
 </div>
@@ -90,7 +90,7 @@
             
             selectColorScheme(data.map_color_scheme || 'cool');
         } catch (e) {
-            showToast('加载设置失败', 'danger');
+            showToast(t('settings_load_failed'), 'danger');
         }
     }
 
@@ -107,7 +107,7 @@
     async function saveSettings() {
         const btn = document.getElementById('saveBtn');
         btn.disabled = true;
-        btn.textContent = '保存中...';
+        btn.textContent = t('settings_saving');
 
         try {
             const res = await fetch('/api/admin/system_config', {
@@ -122,15 +122,15 @@
             });
 
             if (res.ok) {
-                showToast('设置保存成功！刷新页面即可看到效果', 'success');
+                showToast(t('settings_save_success'), 'success');
             } else {
-                showToast('保存失败', 'danger');
+                showToast(t('settings_save_failed'), 'danger');
             }
         } catch (e) {
-            showToast('保存失败，请重试', 'danger');
+            showToast(t('settings_save_failed'), 'danger');
         } finally {
             btn.disabled = false;
-            btn.textContent = '保存设置';
+            btn.textContent = t('settings_save_btn');
         }
     }
 

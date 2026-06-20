@@ -8,9 +8,9 @@
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                口碑审核管理
+                <span data-i18n="adminreviews_title">口碑审核管理</span>
             </h2>
-            <p class="review-subtitle">审核用户提交的车型评价，通过或驳回并附处理意见</p>
+            <p class="review-subtitle" data-i18n="adminreviews_subtitle">审核用户提交的车型评价，通过或驳回并附处理意见</p>
         </div>
     </div>
 
@@ -24,7 +24,7 @@
             </div>
             <div class="review-stat-info">
                 <div class="review-stat-value" id="pendingCount">0</div>
-                <div class="review-stat-label">待审核</div>
+                <div class="review-stat-label" data-i18n="adminreviews_stat_pending">待审核</div>
             </div>
         </div>
         <div class="review-stat-card">
@@ -36,7 +36,7 @@
             </div>
             <div class="review-stat-info">
                 <div class="review-stat-value" id="approvedCount">0</div>
-                <div class="review-stat-label">已通过</div>
+                <div class="review-stat-label" data-i18n="adminreviews_stat_approved">已通过</div>
             </div>
         </div>
         <div class="review-stat-card">
@@ -49,42 +49,42 @@
             </div>
             <div class="review-stat-info">
                 <div class="review-stat-value" id="rejectedCount">0</div>
-                <div class="review-stat-label">已驳回</div>
+                <div class="review-stat-label" data-i18n="adminreviews_stat_rejected">已驳回</div>
             </div>
         </div>
     </div>
 
     <div class="review-filter-tabs">
-        <button class="review-tab-btn active" data-status="pending" onclick="switchReviewTab('pending')">
+        <button class="review-tab-btn active" data-status="pending" onclick="switchReviewTab('pending')" data-i18n="adminreviews_tab_pending">
             待审核
         </button>
-        <button class="review-tab-btn" data-status="approved" onclick="switchReviewTab('approved')">
+        <button class="review-tab-btn" data-status="approved" onclick="switchReviewTab('approved')" data-i18n="adminreviews_tab_approved">
             已通过
         </button>
-        <button class="review-tab-btn" data-status="rejected" onclick="switchReviewTab('rejected')">
+        <button class="review-tab-btn" data-status="rejected" onclick="switchReviewTab('rejected')" data-i18n="adminreviews_tab_rejected">
             已驳回
         </button>
     </div>
 
     <div id="reviewListContainer" class="review-list-container">
-        <div class="review-list-loading">加载中...</div>
+        <div class="review-list-loading" data-i18n="adminreviews_loading">加载中...</div>
     </div>
 </div>
 
 <!-- Review Modal -->
 <div id="reviewModal" class="modal-overlay" style="display: none; z-index: 2500;">
     <div class="modal review-modal">
-        <h4 id="reviewModalTitle">审核评价</h4>
+        <h4 id="reviewModalTitle" data-i18n="adminreviews_modal_title">审核评价</h4>
         <div id="reviewModalContent" class="review-modal-content"></div>
         <div class="form-group" style="text-align: left;">
-            <label>处理意见 <span style="color: #f43f5e;">*</span></label>
-            <textarea id="adminNoteInput" placeholder="请输入处理意见（驳回时必填）" rows="3" maxlength="200"></textarea>
+            <label data-i18n="adminreviews_admin_note_label">处理意见</label> <span style="color: #f43f5e;">*</span>
+            <textarea id="adminNoteInput" data-i18n-placeholder="adminreviews_admin_note_placeholder" placeholder="请输入处理意见（驳回时必填）" rows="3" maxlength="200"></textarea>
             <div class="char-count"><span id="adminNoteCharCount">0</span>/200</div>
         </div>
         <div class="modal-actions">
-            <button class="btn" style="background: #334155;" onclick="closeReviewModal()">取消</button>
-            <button class="btn btn-review-reject" onclick="executeReview('reject')">驳回</button>
-            <button class="btn btn-review-approve" onclick="executeReview('approve')">通过</button>
+            <button class="btn" style="background: #334155;" onclick="closeReviewModal()" data-i18n="adminreviews_btn_cancel">取消</button>
+            <button class="btn btn-review-reject" onclick="executeReview('reject')" data-i18n="adminreviews_btn_reject">驳回</button>
+            <button class="btn btn-review-approve" onclick="executeReview('approve')" data-i18n="adminreviews_btn_approve">通过</button>
         </div>
     </div>
 </div>
@@ -130,19 +130,20 @@ function switchReviewTab(status) {
 
 async function loadReviewList(status) {
     const container = document.getElementById('reviewListContainer');
-    container.innerHTML = '<div class="review-list-loading">加载中...</div>';
+    container.innerHTML = `<div class="review-list-loading" data-i18n="adminreviews_loading">${t('adminreviews_loading')}</div>`;
 
     try {
         const res = await fetch(`/api/admin/reviews?status=${status}`);
         const reviews = await res.json();
 
         if (reviews.length === 0) {
+            const statusWord = status === 'pending' ? t('adminreviews_tab_pending') : status === 'approved' ? t('adminreviews_tab_approved') : t('adminreviews_tab_rejected');
             container.innerHTML = `
                 <div class="review-empty-state">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity: 0.3; margin-bottom: 16px;">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
-                    <p>暂无${status === 'pending' ? '待审核' : status === 'approved' ? '已通过' : '已驳回'}的评价</p>
+                    <p>${t('adminreviews_empty_prefix')}${statusWord}${t('adminreviews_empty_suffix')}</p>
                 </div>
             `;
             return;
@@ -169,30 +170,30 @@ async function loadReviewList(status) {
                         <span class="review-rating-value">${r.rating}.0</span>
                     </div>
                     <div class="review-comment">${r.comment}</div>
-                    ${r.admin_note ? `<div class="review-admin-note"><strong>处理意见：</strong>${r.admin_note}</div>` : ''}
+                    ${r.admin_note ? `<div class="review-admin-note"><strong>${t('adminreviews_admin_note_label')}：</strong>${r.admin_note}</div>` : ''}
                 </div>
                 ${status === 'pending' ? `
                 <div class="review-card-actions">
                     <button class="btn btn-sm btn-review-reject" onclick="openReviewModal(${r.id}, '${r.username}', '${r.brand} ${r.model_name}', ${r.rating}, '${r.comment.replace(/'/g, "\\'")}')">
-                        驳回
+                        ${t('adminreviews_btn_reject')}
                     </button>
                     <button class="btn btn-sm btn-review-approve" onclick="quickApprove(${r.id})">
-                        通过
+                        ${t('adminreviews_btn_approve')}
                     </button>
                 </div>
                 ` : `
                 <div class="review-card-footer">
                     <span class="review-status review-${r.status}">
-                        ${r.status === 'approved' ? '已通过' : '已驳回'}
+                        ${r.status === 'approved' ? t('adminreviews_status_approved') : t('adminreviews_status_rejected')}
                     </span>
-                    <span class="review-reviewer">审核人：${r.reviewer_name || '-'}</span>
+                    <span class="review-reviewer">${t('adminreviews_reviewer_label')}${r.reviewer_name || '-'}</span>
                     <span class="review-reviewed-at">${r.reviewed_at || '-'}</span>
                 </div>
                 `}
             </div>
         `).join('');
     } catch (e) {
-        container.innerHTML = '<div class="review-list-error">加载失败，请重试</div>';
+        container.innerHTML = `<div class="review-list-error">${t('adminreviews_load_failed')}</div>`;
     }
 }
 
@@ -210,23 +211,23 @@ function renderStars(rating) {
 
 function openReviewModal(id, username, carModel, rating, comment) {
     currentReviewId = id;
-    document.getElementById('reviewModalTitle').textContent = '审核评价';
+    document.getElementById('reviewModalTitle').textContent = t('adminreviews_modal_title');
     document.getElementById('reviewModalContent').innerHTML = `
         <div class="review-modal-info">
             <div class="review-modal-row">
-                <span class="review-modal-label">用户：</span>
+                <span class="review-modal-label">${t('adminreviews_modal_label_user')}</span>
                 <span class="review-modal-value">${username}</span>
             </div>
             <div class="review-modal-row">
-                <span class="review-modal-label">车型：</span>
+                <span class="review-modal-label">${t('adminreviews_modal_label_car')}</span>
                 <span class="review-modal-value">${carModel}</span>
             </div>
             <div class="review-modal-row">
-                <span class="review-modal-label">评分：</span>
+                <span class="review-modal-label">${t('adminreviews_modal_label_rating')}</span>
                 <span class="review-modal-value">${renderStars(rating)} ${rating}.0</span>
             </div>
             <div class="review-modal-row">
-                <span class="review-modal-label">评价：</span>
+                <span class="review-modal-label">${t('adminreviews_modal_label_comment')}</span>
             </div>
             <div class="review-modal-comment">${comment}</div>
         </div>
@@ -254,7 +255,7 @@ async function executeReview(action) {
     const adminNote = document.getElementById('adminNoteInput').value.trim();
 
     if (action === 'reject' && !adminNote) {
-        showToast('驳回时请填写处理意见', 'danger');
+        showToast(t('adminreviews_note_required'), 'danger');
         document.getElementById('adminNoteInput').focus();
         return;
     }
@@ -277,10 +278,10 @@ async function executeReview(action) {
             loadReviewStats();
             loadReviewList(currentTab);
         } else {
-            showToast(data.error || '操作失败', 'danger');
+            showToast(data.error || t('adminreviews_operation_failed'), 'danger');
         }
     } catch (e) {
-        showToast('操作失败，请重试', 'danger');
+        showToast(t('adminreviews_retry_hint'), 'danger');
     }
 }
 
