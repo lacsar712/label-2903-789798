@@ -34,6 +34,17 @@ def create_app():
             os.makedirs('../database')
         db.create_all()
         
+        # Migration: Add has_seen_tour column if it doesn't exist
+        try:
+            from sqlalchemy import text
+            db.session.execute(text('SELECT has_seen_tour FROM "user" LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(text('ALTER TABLE "user" ADD COLUMN has_seen_tour BOOLEAN NOT NULL DEFAULT 0'))
+                db.session.commit()
+            except Exception as e:
+                print("Migration notice:", e)
+        
         # Automatic Admin Creation
         admin = models.User.query.filter_by(username='admin').first()
         if not admin:

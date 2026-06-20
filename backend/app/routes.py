@@ -380,3 +380,16 @@ def admin_users():
     if current_user.role != 'admin':
         return redirect(url_for('main.home'))
     return render_template('admin_users.html')
+
+@bp.route("/api/user/tour_status")
+@login_required
+def get_tour_status():
+    return jsonify({'has_seen_tour': current_user.has_seen_tour})
+
+@bp.route("/api/user/tour_status", methods=['POST'])
+@login_required
+def mark_tour_seen():
+    if not current_user.has_seen_tour:
+        current_user.has_seen_tour = True
+        db.session.commit()
+    return jsonify({'status': 'ok', 'has_seen_tour': current_user.has_seen_tour})

@@ -10,6 +10,7 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(20), unique=True, nullable=False)
     password = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(10), nullable=False, default='user')
+    has_seen_tour = db.Column(db.Boolean, nullable=False, default=False)
 
 class CarModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -303,3 +303,230 @@ window.addEventListener('load', () => {
 window.addEventListener('resize', () => {
     Object.values(charts).forEach(c => c.resize());
 });
+
+// ============ Onboarding Tour ============
+const tourSteps = [
+    {
+        target: '#tour-filter-pane',
+        title: '筛选面板',
+        description: '在这里您可以按品牌、城市、价格、续航等多维度筛选数据。调整筛选条件后，所有图表会自动更新。',
+        placement: 'bottom'
+    },
+    {
+        target: '#tour-bar-chart',
+        title: '多维柱状图',
+        description: '展示各车型的续航、价格、电耗等参数对比。点击柱状图中的品牌，可以快速筛选查看特定品牌的数据。',
+        placement: 'right'
+    },
+    {
+        target: '#tour-map-mode',
+        title: '地图维度切换',
+        description: '在「销量热力分布」和「充电桩密度」两种视图间切换，从不同角度洞察市场数据。',
+        placement: 'bottom'
+    },
+    {
+        target: '#tour-pie-chart',
+        title: '区域饼图',
+        description: '展示当前所选城市的各品牌市场份额。点击饼图中的品牌区块，可快速筛选该品牌数据。',
+        placement: 'left'
+    }
+];
+
+let tourCurrentStep = 0;
+let tourIsManual = false;
+let tourOverlay = null;
+let tourHighlight = null;
+let tourTooltip = null;
+
+function initTourElements() {
+    if (tourOverlay) return;
+
+    tourOverlay = document.createElement('div');
+    tourOverlay.className = 'tour-overlay';
+    document.body.appendChild(tourOverlay);
+
+    tourHighlight = document.createElement('div');
+    tourHighlight.className = 'tour-highlight';
+    document.body.appendChild(tourHighlight);
+
+    tourTooltip = document.createElement('div');
+    tourTooltip.className = 'tour-tooltip';
+    document.body.appendChild(tourTooltip);
+}
+
+function positionTourElement(step) {
+    const target = document.querySelector(step.target);
+    if (!target) return false;
+
+    const rect = target.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+    const padding = 8;
+
+    tourHighlight.style.top = (rect.top + scrollTop - padding) + 'px';
+    tourHighlight.style.left = (rect.left + scrollLeft - padding) + 'px';
+    tourHighlight.style.width = (rect.width + padding * 2) + 'px';
+    tourHighlight.style.height = (rect.height + padding * 2) + 'px';
+
+    const tooltipWidth = 320;
+    const tooltipHeight = 200;
+    const gap = 16;
+
+    let tipTop, tipLeft;
+    let placement = step.placement;
+
+    if (placement === 'bottom') {
+        tipTop = rect.bottom + scrollTop + gap;
+        tipLeft = rect.left + scrollLeft + rect.width / 2 - tooltipWidth / 2;
+    } else if (placement === 'top') {
+        tipTop = rect.top + scrollTop - tooltipHeight - gap;
+        tipLeft = rect.left + scrollLeft + rect.width / 2 - tooltipWidth / 2;
+    } else if (placement === 'right') {
+        tipTop = rect.top + scrollTop + rect.height / 2 - tooltipHeight / 2;
+        tipLeft = rect.right + scrollLeft + gap;
+    } else if (placement === 'left') {
+        tipTop = rect.top + scrollTop + rect.height / 2 - tooltipHeight / 2;
+        tipLeft = rect.left + scrollLeft - tooltipWidth - gap;
+    }
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    if (tipLeft < 20) tipLeft = 20;
+    if (tipLeft + tooltipWidth > viewportWidth - 20) tipLeft = viewportWidth - tooltipWidth - 20;
+
+    if (tipTop < scrollTop + 20) {
+        tipTop = rect.bottom + scrollTop + gap;
+        placement = 'bottom';
+    }
+    if (tipTop + tooltipHeight > scrollTop + viewportHeight - 20) {
+        tipTop = rect.top + scrollTop - tooltipHeight - gap;
+        placement = 'top';
+    }
+
+    tourTooltip.className = 'tour-tooltip ' + placement;
+    tourTooltip.style.top = tipTop + 'px';
+    tourTooltip.style.left = tipLeft + 'px';
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    return true;
+}
+
+function renderTourStep() {
+    const step = tourSteps[tourCurrentStep];
+    if (!positionTourElement(step)) {
+        endTour();
+        return;
+    }
+
+    const dots = tourSteps.map((_, i) =>
+        `<div class="tour-dot ${i === tourCurrentStep ? 'active' : ''}"></div>`
+    ).join('');
+
+    const isLast = tourCurrentStep === tourSteps.length - 1;
+
+    tourTooltip.innerHTML = `
+        <div class="tour-step-num">第 ${tourCurrentStep + 1} 步 / 共 ${tourSteps.length} 步</div>
+        <div class="tour-progress">${dots}</div>
+        <h4>${step.title}</h4>
+        <p>${step.description}</p>
+        <div class="tour-tooltip-actions">
+            <button class="tour-btn-skip" onclick="endTour()">${isLast ? '完成' : '跳过引导'}</button>
+            <button class="tour-btn-next" onclick="nextTourStep()">${isLast ? '完成' : '继续'}</button>
+        </div>
+    `;
+}
+
+function nextTourStep() {
+    if (tourCurrentStep < tourSteps.length - 1) {
+        tourCurrentStep++;
+        renderTourStep();
+    } else {
+        endTour();
+    }
+}
+
+function endTour() {
+    if (tourOverlay) {
+        tourOverlay.classList.remove('active');
+        setTimeout(() => {
+            if (tourOverlay && tourOverlay.parentNode) tourOverlay.parentNode.removeChild(tourOverlay);
+            if (tourHighlight && tourHighlight.parentNode) tourHighlight.parentNode.removeChild(tourHighlight);
+            if (tourTooltip && tourTooltip.parentNode) tourTooltip.parentNode.removeChild(tourTooltip);
+            tourOverlay = null;
+            tourHighlight = null;
+            tourTooltip = null;
+        }, 300);
+    }
+
+    if (!tourIsManual) {
+        markTourAsSeen();
+    }
+
+    tourIsManual = false;
+    tourCurrentStep = 0;
+}
+
+async function markTourAsSeen() {
+    try {
+        await fetch('/api/user/tour_status', { method: 'POST' });
+    } catch (e) {
+        console.error('Failed to mark tour as seen:', e);
+    }
+}
+
+async function checkAndStartTour() {
+    try {
+        const res = await fetch('/api/user/tour_status');
+        const data = await res.json();
+        if (!data.has_seen_tour) {
+            startTour(false);
+        }
+    } catch (e) {
+        console.error('Failed to check tour status:', e);
+    }
+}
+
+function startTour(isManual = false) {
+    tourIsManual = isManual;
+    tourCurrentStep = 0;
+
+    initTourElements();
+    tourOverlay.style.display = 'block';
+    requestAnimationFrame(() => {
+        tourOverlay.classList.add('active');
+    });
+
+    setTimeout(() => renderTourStep(), 100);
+
+    tourOverlay.onclick = (e) => {
+        if (e.target === tourOverlay) {
+            endTour();
+        }
+    };
+
+    const handleResize = () => {
+        if (tourTooltip) {
+            renderTourStep();
+        }
+    };
+    window.addEventListener('resize', handleResize);
+}
+
+function startTourManual() {
+    startTour(true);
+}
+
+window.addEventListener('load', () => {
+    if (document.getElementById('tour-filter-pane')) {
+        const manualTour = localStorage.getItem('manual_tour');
+        if (manualTour === 'true') {
+            localStorage.removeItem('manual_tour');
+            setTimeout(() => startTour(true), 800);
+        } else {
+            setTimeout(checkAndStartTour, 800);
+        }
+    }
+});

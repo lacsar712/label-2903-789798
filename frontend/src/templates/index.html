@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}控制面板{% endblock %}
 {% block content %}
-<div class="filter-pane">
+<div class="filter-pane" id="tour-filter-pane">
     <div class="filter-group">
         <label>品牌</label>
         <select id="brandFilter">
@@ -60,7 +60,7 @@
             </select>
         </div>
     </div>
-    <div class="filter-group">
+    <div class="filter-group" id="tour-map-mode">
         <label>地图维度</label>
         <select id="mapMode">
             <option value="sales">销量热力分布</option>
@@ -75,7 +75,7 @@
 
 <div class="dashboard-grid">
     <!-- Bar Chart -->
-    <div class="chart-card col-8">
+    <div class="chart-card col-8" id="tour-bar-chart">
         <h3>车型参数多维对比</h3>
         <div id="barChart" class="chart-box" style="height: 380px;"></div>
         <div class="dashboard-table-container" style="max-height: 240px;">
@@ -94,7 +94,7 @@
     </div>
 
     <!-- Pie Chart -->
-    <div class="chart-card col-4">
+    <div class="chart-card col-4" id="tour-pie-chart">
         <h3>区域品牌份额分布</h3>
         <div id="pieChart" class="chart-box"></div>
     </div>
