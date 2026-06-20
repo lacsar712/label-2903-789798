@@ -3,10 +3,33 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}{% endblock %} - 新能源汽车数据分析系统</title>
+    <title>{% block title %}{% endblock %} - {{ site_title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            {% if map_color_scheme == 'warm' %}
+            --map-color-1: #1e293b;
+            --map-color-2: #fbbf24;
+            --map-color-3: #f97316;
+            --map-color-4: #ef4444;
+            {% else %}
+            --map-color-1: #1e293b;
+            --map-color-2: #38bdf8;
+            --map-color-3: #818cf8;
+            --map-color-4: #a78bfa;
+            {% endif %}
+        }
+    </style>
+    <script>
+        window.systemConfig = {
+            siteTitle: '{{ site_title }}',
+            mapColorScheme: '{{ map_color_scheme }}',
+            defaultCity: '{{ default_city }}',
+            selfRegistrationEnabled: {{ 'true' if self_registration_enabled else 'false' }}
+        };
+    </script>
 </head>
 
 <body>
@@ -23,6 +46,7 @@
             <a href="{{ url_for('main.admin_users') }}">用户管理</a>
             <a href="{{ url_for('main.admin_reviews') }}">口碑审核</a>
             <a href="{{ url_for('main.quarterly_report') }}">季度报告</a>
+            <a href="{{ url_for('main.admin_settings') }}">系统设置</a>
             {% endif %}
             <a href="{{ url_for('main.change_password') }}">修改密码</a>
             <div class="notification-bell-wrap" id="notificationBellWrap">
@@ -49,7 +73,9 @@
             <a href="{{ url_for('main.logout') }}">安全退出</a>
             {% else %}
             <a href="{{ url_for('main.login') }}">身份验证</a>
+            {% if self_registration_enabled %}
             <a href="{{ url_for('main.register') }}">新用户注册</a>
+            {% endif %}
             {% endif %}
         </div>
     </nav>

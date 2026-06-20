@@ -15,7 +15,9 @@
             </div>
             <button type="submit" class="btn">立即进入</button>
         </form>
+        {% if self_registration_enabled %}
         <p>还没有账号？ <a href="{{ url_for('main.register') }}">创建新账号</a></p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

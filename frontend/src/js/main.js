@@ -4,12 +4,36 @@ const echartsTheme = {
     textStyle: { color: '#94a3b8' }
 };
 
+const MAP_COLOR_SCHEMES = {
+    cool: ['#1e293b', '#38bdf8', '#818cf8', '#a78bfa'],
+    warm: ['#1e293b', '#fbbf24', '#f97316', '#ef4444']
+};
+
 let charts = {};
 let currentSelection = {
     brand: '',
     city: '北京',
-    drillDown: false // Clicked a brand in bar chart
+    drillDown: false
 };
+
+function getMapColors() {
+    const scheme = (window.systemConfig && window.systemConfig.mapColorScheme) || 'cool';
+    return MAP_COLOR_SCHEMES[scheme] || MAP_COLOR_SCHEMES.cool;
+}
+
+function getInitialCity() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCity = urlParams.get('city');
+    if (urlCity) return urlCity;
+
+    const storedCity = localStorage.getItem('user_preferred_city');
+    if (storedCity) return storedCity;
+
+    if (window.systemConfig && window.systemConfig.defaultCity) {
+        return window.systemConfig.defaultCity;
+    }
+    return '北京';
+}
 
 function initCharts() {
     const ids = ['barChart', 'pieChart', 'lineChart', 'scatterChart', 'mapChart'];
@@ -153,11 +177,12 @@ async function loadMapChart() {
         const vals = data.data.map(d => d.value).filter(v => v > 0);
         const maxVal = vals.length > 0 ? Math.max(...vals) : (mapMode === 'density' ? 50 : 20000);
 
+        const mapColors = getMapColors();
         charts.mapChart.setOption({
             title: { text: data.title + ' (可滚轮缩放)', textStyle: { color: '#94a3b8', fontSize: 14 } },
             visualMap: {
                 min: 0, max: maxVal > 0 ? maxVal : 100, left: 'right', top: 'bottom', text: ['高', '低'],
-                calculable: true, inRange: { color: ['#1e293b', '#38bdf8', '#818cf8'] },
+                calculable: true, inRange: { color: mapColors },
                 textStyle: { color: '#94a3b8' }
             },
             tooltip: {
@@ -188,17 +213,41 @@ function refreshCharts() {
     loadMapChart();
 }
 
+function initCityFilter() {
+    const cityFilter = document.getElementById('cityFilter');
+    if (!cityFilter) return;
+
+    const initialCity = getInitialCity();
+    cityFilter.value = initialCity;
+    currentSelection.city = initialCity;
+}
+
+function saveCityPreference(city) {
+    if (city) {
+        localStorage.setItem('user_preferred_city', city);
+    }
+}
+
 // Add event listeners for automatic refreshing
 window.addEventListener('load', () => {
     initCharts();
     if (charts.barChart) {
+        initCityFilter();
         refreshCharts();
 
         // Auto-refresh when dropdowns change
         const autoFilters = ['brandFilter', 'cityFilter', 'sortField', 'sortOrder', 'mapMode'];
         autoFilters.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.onchange = refreshCharts;
+            if (el) {
+                el.onchange = function() {
+                    if (id === 'cityFilter') {
+                        saveCityPreference(this.value);
+                        currentSelection.city = this.value;
+                    }
+                    refreshCharts();
+                };
+            }
         });
 
         // Auto-refresh for checkboxes

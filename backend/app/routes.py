@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from app import db, bcrypt
-from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset, AlertRule, AlertNotification, CarReview
+from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset, AlertRule, AlertNotification, CarReview, SystemConfig
 from flask_login import login_user, current_user, logout_user, login_required
 from sqlalchemy import func, or_, text
 import random
@@ -28,21 +28,6 @@ def login():
         else:
             flash('登录失败，请检查用户名或密码', 'danger')
     return render_template('login.html')
-
-@bp.route("/register", methods=['GET', 'POST'])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.home'))
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        user = User(username=username, password=hashed_password)
-        db.session.add(user)
-        db.session.commit()
-        flash('账号创建成功！请登录', 'success')
-        return redirect(url_for('main.login'))
-    return render_template('register.html')
 
 @bp.route("/logout")
 def logout():
@@ -1674,3 +1659,106 @@ def fix_missing_piles():
         'status': 'ok',
         'fixed_count': fixed_count
     })
+
+# ============ System Configuration ============
+
+DEFAULT_CONFIG = {
+    'site_title': '新能源汽车数据分析系统',
+    'default_city': '北京',
+    'map_color_scheme': 'cool',
+    'self_registration_enabled': 'true'
+}
+
+def get_system_config():
+    configs = SystemConfig.query.all()
+    config_dict = {c.config_key: c.config_value for c in configs}
+    result = {}
+    for key, default_val in DEFAULT_CONFIG.items():
+        result[key] = config_dict.get(key, default_val)
+    return result
+
+def get_config_value(key):
+    config = SystemConfig.query.filter_by(config_key=key).first()
+    if config:
+        return config.config_value
+    return DEFAULT_CONFIG.get(key, '')
+
+def set_config_value(key, value):
+    config = SystemConfig.query.filter_by(config_key=key).first()
+    if config:
+        config.config_value = str(value)
+    else:
+        config = SystemConfig(config_key=key, config_value=str(value))
+        db.session.add(config)
+    db.session.commit()
+    return config
+
+@bp.context_processor
+def inject_site_config():
+    config = get_system_config()
+    return {
+        'site_title': config['site_title'],
+        'default_city': config['default_city'],
+        'map_color_scheme': config['map_color_scheme'],
+        'self_registration_enabled': config['self_registration_enabled'] == 'true'
+    }
+
+@bp.route("/api/system/config", methods=['GET'])
+def api_get_system_config():
+    config = get_system_config()
+    config['self_registration_enabled'] = config['self_registration_enabled'] == 'true'
+    return jsonify(config)
+
+@bp.route("/admin/settings")
+@login_required
+def admin_settings():
+    if current_user.role != 'admin':
+        return redirect(url_for('main.home'))
+    return render_template('admin_settings.html')
+
+@bp.route("/api/admin/system_config", methods=['GET'])
+@login_required
+def api_admin_get_config():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+    config = get_system_config()
+    config['self_registration_enabled'] = config['self_registration_enabled'] == 'true'
+    return jsonify(config)
+
+@bp.route("/api/admin/system_config", methods=['PUT'])
+@login_required
+def api_admin_update_config():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+    
+    data = request.json
+    allowed_keys = ['site_title', 'default_city', 'map_color_scheme', 'self_registration_enabled']
+    
+    for key in allowed_keys:
+        if key in data:
+            value = data[key]
+            if key == 'self_registration_enabled':
+                value = 'true' if value else 'false'
+            set_config_value(key, value)
+    
+    config = get_system_config()
+    config['self_registration_enabled'] = config['self_registration_enabled'] == 'true'
+    return jsonify(config)
+
+@bp.route("/register", methods=['GET', 'POST'])
+def register():
+    if get_config_value('self_registration_enabled') != 'true':
+        flash('自助注册暂未开放，请联系管理员', 'danger')
+        return redirect(url_for('main.login'))
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        user = User(username=username, password=hashed_password)
+        db.session.add(user)
+        db.session.commit()
+        flash('账号创建成功！请登录', 'success')
+        return redirect(url_for('main.login'))
+    return render_template('register.html')

@@ -93,3 +93,9 @@ class CarReview(db.Model):
     __table_args__ = (
         db.UniqueConstraint('user_id', 'car_model_id', name='_user_car_uc'),
     )
+
+class SystemConfig(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    config_key = db.Column(db.String(50), unique=True, nullable=False)
+    config_value = db.Column(db.Text, nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())

@@ -103,6 +103,38 @@ def create_app():
             except Exception as e:
                 print("Migration notice (car_review):", e)
         
+        # Migration: Create system_config table if it doesn't exist
+        try:
+            from sqlalchemy import text
+            db.session.execute(text('SELECT id FROM system_config LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE system_config (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        config_key VARCHAR(50) UNIQUE NOT NULL,
+                        config_value TEXT NOT NULL,
+                        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                db.session.commit()
+            except Exception as e:
+                print("Migration notice (system_config):", e)
+        
+        # Initialize default system config
+        default_configs = {
+            'site_title': '新能源汽车数据分析系统',
+            'default_city': '北京',
+            'map_color_scheme': 'cool',
+            'self_registration_enabled': 'true'
+        }
+        for key, value in default_configs.items():
+            existing = models.SystemConfig.query.filter_by(config_key=key).first()
+            if not existing:
+                config = models.SystemConfig(config_key=key, config_value=value)
+                db.session.add(config)
+        db.session.commit()
+        
         # Automatic Admin Creation
         admin = models.User.query.filter_by(username='admin').first()
         if not admin:

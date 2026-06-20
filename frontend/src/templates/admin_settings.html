@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}系统设置{% endblock %}
+{% block content %}
+<div class="filter-pane">
+    <h3><i class="icon"></i> 系统外观设置</h3>
+</div>
+
+<div class="chart-card col-12" style="height: auto; min-height: auto; padding: 30px;">
+    <div class="settings-form">
+        <div class="form-group">
+            <label>站点标题文案</label>
+            <input type="text" id="siteTitle" placeholder="请输入站点标题" maxlength="50">
+            <p class="form-hint">显示在浏览器标签页和导航栏中，保存后用户刷新页面即可看到变化</p>
+        </div>
+
+        <div class="form-group">
+            <label>新用户默认城市</label>
+            <select id="defaultCity" style="width: 100%;">
+                <option value="北京">北京</option>
+                <option value="上海">上海</option>
+                <option value="广东">广东</option>
+                <option value="浙江">浙江</option>
+            </select>
+            <p class="form-hint">仅作用于尚未设定个人偏好或未通过链接指定城市的新访客</p>
+        </div>
+
+        <div class="form-group">
+            <label>地图热力配色方案</label>
+            <div class="color-scheme-options">
+                <div class="color-scheme-option" data-scheme="cool" onclick="selectColorScheme('cool')">
+                    <div class="color-preview cool-preview">
+                        <div class="color-bar" style="background: #1e293b;"></div>
+                        <div class="color-bar" style="background: #38bdf8;"></div>
+                        <div class="color-bar" style="background: #818cf8;"></div>
+                        <div class="color-bar" style="background: #a78bfa;"></div>
+                    </div>
+                    <span class="color-scheme-label">冷色调</span>
+                    <div class="color-scheme-check" id="coolCheck">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="color-scheme-option" data-scheme="warm" onclick="selectColorScheme('warm')">
+                    <div class="color-preview warm-preview">
+                        <div class="color-bar" style="background: #1e293b;"></div>
+                        <div class="color-bar" style="background: #fbbf24;"></div>
+                        <div class="color-bar" style="background: #f97316;"></div>
+                        <div class="color-bar" style="background: #ef4444;"></div>
+                    </div>
+                    <span class="color-scheme-label">暖色调</span>
+                    <div class="color-scheme-check" id="warmCheck" style="display: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <p class="form-hint">选择地图热力图的配色风格，保存后用户刷新页面即可看到变化</p>
+        </div>
+
+        <div class="form-group">
+            <label class="switch-label">
+                <span>开放自助注册</span>
+                <label class="switch">
+                    <input type="checkbox" id="selfRegistrationEnabled">
+                    <span class="slider"></span>
+                </label>
+            </label>
+            <p class="form-hint">开启后访客可自行注册账号；关闭后仅管理员可创建用户</p>
+        </div>
+
+        <div class="form-actions">
+            <button onclick="saveSettings()" class="btn btn-primary" id="saveBtn">保存设置</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedColorScheme = 'cool';
+
+    async function loadSettings() {
+        try {
+            const res = await fetch('/api/admin/system_config');
+            const data = await res.json();
+            
+            document.getElementById('siteTitle').value = data.site_title || '';
+            document.getElementById('defaultCity').value = data.default_city || '北京';
+            document.getElementById('selfRegistrationEnabled').checked = data.self_registration_enabled;
+            
+            selectColorScheme(data.map_color_scheme || 'cool');
+        } catch (e) {
+            showToast('加载设置失败', 'danger');
+        }
+    }
+
+    function selectColorScheme(scheme) {
+        selectedColorScheme = scheme;
+        document.querySelectorAll('.color-scheme-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        document.querySelector(`.color-scheme-option[data-scheme="${scheme}"]`).classList.add('selected');
+        document.getElementById('coolCheck').style.display = scheme === 'cool' ? 'flex' : 'none';
+        document.getElementById('warmCheck').style.display = scheme === 'warm' ? 'flex' : 'none';
+    }
+
+    async function saveSettings() {
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.textContent = '保存中...';
+
+        try {
+            const res = await fetch('/api/admin/system_config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    site_title: document.getElementById('siteTitle').value.trim(),
+                    default_city: document.getElementById('defaultCity').value,
+                    map_color_scheme: selectedColorScheme,
+                    self_registration_enabled: document.getElementById('selfRegistrationEnabled').checked
+                })
+            });
+
+            if (res.ok) {
+                showToast('设置保存成功！刷新页面即可看到效果', 'success');
+            } else {
+                showToast('保存失败', 'danger');
+            }
+        } catch (e) {
+            showToast('保存失败，请重试', 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '保存设置';
+        }
+    }
+
+    window.addEventListener('load', loadSettings);
+</script>
+
+<style>
+    .settings-form {
+        max-width: 600px;
+    }
+
+    .settings-form .form-group {
+        margin-bottom: 30px;
+    }
+
+    .settings-form label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 10px;
+    }
+
+    .settings-form input[type="text"],
+    .settings-form select {
+        width: 100%;
+        padding: 12px 16px;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--glass-border);
+        border-radius: 10px;
+        color: var(--text-primary);
+        font-size: 14px;
+        transition: border-color 0.3s;
+    }
+
+    .settings-form input[type="text"]:focus,
+    .settings-form select:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    .form-hint {
+        color: var(--text-secondary);
+        font-size: 12px;
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+
+    .color-scheme-options {
+        display: flex;
+        gap: 20px;
+    }
+
+    .color-scheme-option {
+        flex: 1;
+        background: rgba(15, 23, 42, 0.6);
+        border: 2px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        text-align: center;
+    }
+
+    .color-scheme-option:hover {
+        border-color: var(--accent-color);
+        transform: translateY(-2px);
+    }
+
+    .color-scheme-option.selected {
+        border-color: var(--accent-color);
+        background: rgba(56, 189, 248, 0.1);
+    }
+
+    .color-preview {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 12px;
+        height: 50px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .color-bar {
+        flex: 1;
+    }
+
+    .color-scheme-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .color-scheme-check {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 28px;
+        height: 28px;
+        background: var(--accent-color);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .switch-label {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 28px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #334155;
+        transition: 0.3s;
+        border-radius: 28px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 22px;
+        width: 22px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    .switch input:checked + .slider {
+        background: var(--primary-gradient);
+    }
+
+    .switch input:checked + .slider:before {
+        transform: translateX(24px);
+    }
+
+    .form-actions {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+    }
+
+    .btn-primary {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+</style>
+{% endblock %}
