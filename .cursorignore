@@ -1,2 +1,8 @@
-﻿trae/
+﻿.venv/
+venv/
+__pycache__/
+*.pyc
+database/
+*.db
+trae/
 PROMPTS.md
