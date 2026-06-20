@@ -304,6 +304,89 @@ window.addEventListener('resize', () => {
     Object.values(charts).forEach(c => c.resize());
 });
 
+// ============ URL Parameter Handling for Review Board Navigation ============
+
+function getUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        brand: params.get('brand'),
+        model: params.get('model')
+    };
+}
+
+function applyUrlParamsOnLoad() {
+    const { brand, model } = getUrlParams();
+    
+    if (!brand && !model) return;
+    
+    if (brand) {
+        const brandSelect = document.getElementById('brandFilter');
+        if (brandSelect) {
+            const brandOption = Array.from(brandSelect.options).find(
+                opt => opt.value === brand || opt.textContent === brand
+            );
+            if (brandOption) {
+                brandSelect.value = brandOption.value;
+                showToast(`已定位至品牌: ${brand}`, 'info');
+            }
+        }
+    }
+    
+    setTimeout(() => {
+        refreshCharts();
+        
+        if (model) {
+            setTimeout(() => {
+                highlightModelInTable(model);
+            }, 500);
+        }
+    }, 100);
+}
+
+function highlightModelInTable(modelName) {
+    const tableBody = document.getElementById('dashboardTableBody');
+    if (!tableBody) return;
+    
+    const rows = tableBody.querySelectorAll('tr');
+    let found = false;
+    
+    rows.forEach(row => {
+        const firstCell = row.querySelector('td:first-child');
+        if (firstCell && firstCell.textContent.trim() === modelName) {
+            row.style.background = 'rgba(56, 189, 248, 0.15)';
+            row.style.transition = 'background 0.3s';
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            found = true;
+            
+            setTimeout(() => {
+                row.style.animation = 'modelHighlight 2s ease-out';
+            }, 100);
+            
+            showToast(`已定位至车型: ${modelName}`, 'success');
+        }
+    });
+    
+    if (!found) {
+        showToast(`车型 ${modelName} 不在当前筛选结果中`, 'info');
+    }
+}
+
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes modelHighlight {
+        0% { background: rgba(56, 189, 248, 0.3); }
+        50% { background: rgba(56, 189, 248, 0.1); }
+        100% { background: transparent; }
+    }
+`;
+document.head.appendChild(style);
+
+window.addEventListener('load', () => {
+    if (document.getElementById('brandFilter')) {
+        setTimeout(applyUrlParamsOnLoad, 200);
+    }
+});
+
 // ============ Onboarding Tour ============
 const tourSteps = [
     {

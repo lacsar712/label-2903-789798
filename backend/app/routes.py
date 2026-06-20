@@ -964,3 +964,60 @@ def get_alert_meta():
             {'value': 'eq', 'label': '等于 (=)'}
         ]
     })
+
+# ============ Energy Consumption Ranking ============
+
+@bp.route("/energy_ranking")
+@login_required
+def energy_ranking():
+    return render_template('energy_ranking.html')
+
+@bp.route("/api/ranking/energy")
+@login_required
+def get_energy_ranking():
+    filter_type = request.args.get('filter', 'all')
+    weight_sort = request.args.get('weight_sort', None)
+    
+    query = CarModel.query
+    
+    if filter_type == '纯电':
+        query = query.filter(CarModel.category == '纯电')
+    elif filter_type == '混动':
+        query = query.filter(CarModel.category == '混动')
+    
+    query = query.order_by(CarModel.power_consumption.asc())
+    
+    if weight_sort == 'asc':
+        query = query.order_by(CarModel.weight_kg.asc())
+    elif weight_sort == 'desc':
+        query = query.order_by(CarModel.weight_kg.desc())
+    
+    vehicles = query.all()
+    
+    if not vehicles:
+        return jsonify({
+            'vehicles': [],
+            'total': 0,
+            'avg_consumption': 0,
+            'best_consumption': 0
+        })
+    
+    total = len(vehicles)
+    avg_consumption = round(sum(v.power_consumption for v in vehicles) / total, 1)
+    best_consumption = min(v.power_consumption for v in vehicles)
+    
+    return jsonify({
+        'vehicles': [{
+            'id': v.id,
+            'brand': v.brand,
+            'model_name': v.model_name,
+            'price': v.price,
+            'range_km': v.range_km,
+            'power_consumption': v.power_consumption,
+            'weight_kg': v.weight_kg,
+            'category': v.category
+        } for v in vehicles],
+        'total': total,
+        'avg_consumption': avg_consumption,
+        'best_consumption': best_consumption
+    })
