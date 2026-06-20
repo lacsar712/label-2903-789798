@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+{% block title %}数据质量监控{% endblock %}
+{% block content %}
+
+<div class="dq-page">
+    <div class="dq-header">
+        <div class="dq-header-left">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px; color: #818cf8;">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="9 12 11 14 15 10"/>
+            </svg>
+            <h2>数据质量健康巡检台</h2>
+            <p class="dq-subtitle">自动扫描并归类四类数据隐患，一键修复或快速定位编辑</p>
+        </div>
+        <div class="dq-header-right">
+            <span class="dq-scan-time" id="scanTime">--</span>
+            <button class="btn dq-btn-refresh" onclick="runScan()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                立即扫描
+            </button>
+        </div>
+    </div>
+
+    <div class="dq-stats">
+        <div class="dq-stat-card dq-stat-total">
+            <div class="dq-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div class="dq-stat-info">
+                <div class="dq-stat-value" id="statTotal">0</div>
+                <div class="dq-stat-label">问题总数</div>
+            </div>
+        </div>
+        <div class="dq-stat-card dq-stat-orphan">
+            <div class="dq-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <div class="dq-stat-info">
+                <div class="dq-stat-value" id="statOrphan">0</div>
+                <div class="dq-stat-label">孤立无销量车型</div>
+            </div>
+        </div>
+        <div class="dq-stat-card dq-stat-abnormal">
+            <div class="dq-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+            </div>
+            <div class="dq-stat-info">
+                <div class="dq-stat-value" id="statAbnormal">0</div>
+                <div class="dq-stat-label">销量异常记录</div>
+            </div>
+        </div>
+        <div class="dq-stat-card dq-stat-piles">
+            <div class="dq-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 0 0 6.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 0 0 6.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+                </svg>
+            </div>
+            <div class="dq-stat-info">
+                <div class="dq-stat-value" id="statPiles">0</div>
+                <div class="dq-stat-label">充电桩空缺省份</div>
+            </div>
+        </div>
+        <div class="dq-stat-card dq-stat-duplicate">
+            <div class="dq-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+            </div>
+            <div class="dq-stat-info">
+                <div class="dq-stat-value" id="statDuplicate">0</div>
+                <div class="dq-stat-label">重复品牌车型</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dq-issue-grid">
+        <!-- 1. 孤立无销量车型 -->
+        <div class="dq-issue-card dq-issue-auto" id="cardOrphan">
+            <div class="dq-issue-header">
+                <div class="dq-issue-title">
+                    <span class="dq-badge dq-badge-orphan" id="badgeOrphan">0</span>
+                    <h3>孤立无销量挂靠车型</h3>
+                </div>
+                <div class="dq-issue-tag dq-tag-auto">可自动修复</div>
+            </div>
+            <div class="dq-issue-desc">存在车型记录但无任何销量数据挂靠，可能导致图表统计不完整</div>
+            <div class="dq-issue-actions">
+                <button class="btn btn-sm dq-btn-fix" onclick="fixOrphanModels('generate_sales')" id="btnFixOrphanGen">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M12 20v-6M6 20V10M18 20V4"/>
+                    </svg>
+                    批量生成模拟销量
+                </button>
+                <button class="btn btn-sm btn-danger dq-btn-fix" onclick="fixOrphanModels('delete')" id="btnFixOrphanDel">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                    批量删除
+                </button>
+                <label class="dq-select-all">
+                    <input type="checkbox" id="selectAllOrphan" onchange="toggleSelectAll('Orphan')"> 全选
+                </label>
+            </div>
+            <div class="dq-list-container">
+                <table class="dq-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>品牌</th>
+                            <th>车型</th>
+                            <th>价格(万)</th>
+                            <th>续航(km)</th>
+                            <th>类型</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orphanTableBody">
+                        <tr><td colspan="6" class="dq-empty">暂无问题</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. 销量异常记录 -->
+        <div class="dq-issue-card dq-issue-auto" id="cardAbnormal">
+            <div class="dq-issue-header">
+                <div class="dq-issue-title">
+                    <span class="dq-badge dq-badge-abnormal" id="badgeAbnormal">0</span>
+                    <h3>销量异常记录</h3>
+                </div>
+                <div class="dq-issue-tag dq-tag-auto">可自动修复</div>
+            </div>
+            <div class="dq-issue-desc">销量≤0或远超均值3倍标准差的异常数据记录</div>
+            <div class="dq-issue-actions">
+                <button class="btn btn-sm dq-btn-fix" onclick="fixAbnormalSales('normalize')" id="btnFixAbnormalNorm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                    </svg>
+                    批量修正为均值
+                </button>
+                <button class="btn btn-sm btn-danger dq-btn-fix" onclick="fixAbnormalSales('delete')" id="btnFixAbnormalDel">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                    批量删除
+                </button>
+                <label class="dq-select-all">
+                    <input type="checkbox" id="selectAllAbnormal" onchange="toggleSelectAll('Abnormal')"> 全选
+                </label>
+            </div>
+            <div class="dq-list-container">
+                <table class="dq-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>品牌</th>
+                            <th>车型</th>
+                            <th>地区</th>
+                            <th>季度</th>
+                            <th>销量</th>
+                            <th>异常原因</th>
+                        </tr>
+                    </thead>
+                    <tbody id="abnormalTableBody">
+                        <tr><td colspan="7" class="dq-empty">暂无问题</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. 充电桩密度空缺省份 -->
+        <div class="dq-issue-card dq-issue-auto" id="cardPiles">
+            <div class="dq-issue-header">
+                <div class="dq-issue-title">
+                    <span class="dq-badge dq-badge-piles" id="badgePiles">0</span>
+                    <h3>充电桩密度空缺省份</h3>
+                </div>
+                <div class="dq-issue-tag dq-tag-auto">可自动修复</div>
+            </div>
+            <div class="dq-issue-desc">最新统计周期内缺少充电桩密度数据的省份，会导致地图出现空白</div>
+            <div class="dq-issue-actions">
+                <button class="btn btn-sm dq-btn-fix" onclick="fixMissingPiles()" id="btnFixPiles">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M12 20v-6M6 20V10M18 20V4"/>
+                    </svg>
+                    批量补全数据
+                </button>
+                <label class="dq-select-all">
+                    <input type="checkbox" id="selectAllPiles" onchange="toggleSelectAll('Piles')"> 全选
+                </label>
+            </div>
+            <div class="dq-list-container">
+                <table class="dq-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>省份</th>
+                            <th>数据周期</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pilesTableBody">
+                        <tr><td colspan="3" class="dq-empty">暂无问题</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 4. 重复品牌车型组合 -->
+        <div class="dq-issue-card dq-issue-manual" id="cardDuplicate">
+            <div class="dq-issue-header">
+                <div class="dq-issue-title">
+                    <span class="dq-badge dq-badge-duplicate" id="badgeDuplicate">0</span>
+                    <h3>重复品牌车型组合</h3>
+                </div>
+                <div class="dq-issue-tag dq-tag-manual">需人工介入</div>
+            </div>
+            <div class="dq-issue-desc">存在相同品牌+车型名的多条记录，请人工判定保留哪条或合并数据</div>
+            <div class="dq-issue-actions">
+                <a href="{{ url_for('main.admin_data') }}" class="btn btn-sm dq-btn-goto">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    前往数据管理
+                </a>
+            </div>
+            <div class="dq-list-container">
+                <table class="dq-table">
+                    <thead>
+                        <tr>
+                            <th>品牌/车型</th>
+                            <th>重复数</th>
+                            <th>实例详情</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="duplicateTableBody">
+                        <tr><td colspan="4" class="dq-empty">暂无问题</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let scanData = null;
+
+async function runScan() {
+    showToast('正在扫描数据...', 'info');
+    try {
+        const res = await fetch('/api/admin/data_quality/scan');
+        if (!res.ok) throw new Error('扫描失败');
+        scanData = await res.json();
+        renderScanResult(scanData);
+        showToast(`扫描完成，共发现 ${scanData.summary.total_issues} 项问题`, scanData.summary.total_issues > 0 ? 'danger' : 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('扫描失败', 'danger');
+    }
+}
+
+function renderScanResult(data) {
+    document.getElementById('scanTime').textContent = '扫描时间: ' + data.scan_time;
+    document.getElementById('statTotal').textContent = data.summary.total_issues;
+    document.getElementById('statOrphan').textContent = data.summary.orphan_models;
+    document.getElementById('statAbnormal').textContent = data.summary.abnormal_sales;
+    document.getElementById('statPiles').textContent = data.summary.missing_piles;
+    document.getElementById('statDuplicate').textContent = data.summary.duplicate_models;
+
+    document.getElementById('badgeOrphan').textContent = data.summary.orphan_models;
+    document.getElementById('badgeAbnormal').textContent = data.summary.abnormal_sales;
+    document.getElementById('badgePiles').textContent = data.summary.missing_piles;
+    document.getElementById('badgeDuplicate').textContent = data.summary.duplicate_models;
+
+    renderOrphanTable(data.issues.orphan_models);
+    renderAbnormalTable(data.issues.abnormal_sales);
+    renderPilesTable(data.issues.missing_piles);
+    renderDuplicateTable(data.issues.duplicate_models);
+
+    updateFixButtons(data.summary);
+}
+
+function updateFixButtons(summary) {
+    document.getElementById('btnFixOrphanGen').disabled = summary.orphan_models === 0;
+    document.getElementById('btnFixOrphanDel').disabled = summary.orphan_models === 0;
+    document.getElementById('btnFixAbnormalNorm').disabled = summary.abnormal_sales === 0;
+    document.getElementById('btnFixAbnormalDel').disabled = summary.abnormal_sales === 0;
+    document.getElementById('btnFixPiles').disabled = summary.missing_piles === 0;
+    document.getElementById('selectAllOrphan').disabled = summary.orphan_models === 0;
+    document.getElementById('selectAllAbnormal').disabled = summary.abnormal_sales === 0;
+    document.getElementById('selectAllPiles').disabled = summary.missing_piles === 0;
+}
+
+function renderOrphanTable(list) {
+    const tbody = document.getElementById('orphanTableBody');
+    if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="dq-empty">暂无问题，全部车型均有销量数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(c => `
+        <tr>
+            <td><input type="checkbox" class="dq-row-check dq-check-Orphan" data-id="${c.id}" checked></td>
+            <td><strong>${c.brand}</strong></td>
+            <td>${c.model_name}</td>
+            <td>${c.price}</td>
+            <td>${c.range_km}</td>
+            <td><span class="dq-cat-badge ${c.category === '纯电' ? 'ev' : 'hybrid'}">${c.category}</span></td>
+        </tr>
+    `).join('');
+    document.getElementById('selectAllOrphan').checked = true;
+}
+
+function renderAbnormalTable(list) {
+    const tbody = document.getElementById('abnormalTableBody');
+    if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="dq-empty">暂无问题，销量数据正常</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(s => `
+        <tr>
+            <td><input type="checkbox" class="dq-row-check dq-check-Abnormal" data-id="${s.id}" checked></td>
+            <td><strong>${s.brand}</strong></td>
+            <td>${s.model_name}</td>
+            <td>${s.region}</td>
+            <td>${s.period}</td>
+            <td class="dq-abnormal-qty">${s.quantity}</td>
+            <td>${s.reasons.map(r => `<span class="dq-reason-tag">${r}</span>`).join(' ')}</td>
+        </tr>
+    `).join('');
+    document.getElementById('selectAllAbnormal').checked = true;
+}
+
+function renderPilesTable(list) {
+    const tbody = document.getElementById('pilesTableBody');
+    if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="dq-empty">暂无问题，所有省份均有充电桩数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(p => `
+        <tr>
+            <td><input type="checkbox" class="dq-row-check dq-check-Piles" data-province="${p.province}" checked></td>
+            <td><strong>${p.province}</strong></td>
+            <td>${p.latest_period}</td>
+        </tr>
+    `).join('');
+    document.getElementById('selectAllPiles').checked = true;
+}
+
+function renderDuplicateTable(list) {
+    const tbody = document.getElementById('duplicateTableBody');
+    if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="dq-empty">暂无问题，品牌车型组合唯一</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(d => `
+        <tr>
+            <td><strong>${d.brand}</strong> ${d.model_name}</td>
+            <td><span class="dq-badge dq-badge-duplicate-sm">${d.count} 条</span></td>
+            <td>
+                <div class="dq-dup-instances">
+                    ${d.instances.map(inst => `
+                        <div class="dq-dup-inst">
+                            <span class="dq-dup-id">#${inst.id}</span>
+                            <span>¥${inst.price}万</span>
+                            <span>${inst.range_km}km</span>
+                            <span>${inst.category}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </td>
+            <td>
+                <a href="{{ url_for('main.admin_data') }}" class="btn btn-sm" style="padding: 5px 12px; font-size: 12px;">
+                    编辑
+                </a>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function toggleSelectAll(type) {
+    const allChecked = document.getElementById('selectAll' + type).checked;
+    document.querySelectorAll('.dq-check-' + type).forEach(cb => {
+        cb.checked = allChecked;
+    });
+}
+
+function getSelectedIds(type) {
+    return Array.from(document.querySelectorAll('.dq-check-' + type + ':checked'))
+        .map(cb => parseInt(cb.dataset.id));
+}
+
+function getSelectedProvinces() {
+    return Array.from(document.querySelectorAll('.dq-check-Piles:checked'))
+        .map(cb => cb.dataset.province);
+}
+
+function fixOrphanModels(action) {
+    const ids = getSelectedIds('Orphan');
+    if (ids.length === 0) {
+        showToast('请先选择要处理的车型', 'danger');
+        return;
+    }
+    const actionText = action === 'generate_sales' ? '生成模拟销量' : '删除车型';
+    showModal('确认操作', `确定要对选中的 ${ids.length} 个孤立车型执行「${actionText}」吗？`, async () => {
+        try {
+            const res = await fetch('/api/admin/data_quality/fix/orphan_models', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ids, action})
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`已成功处理 ${data.fixed_count} 条记录`, 'success');
+                runScan();
+            } else {
+                showToast(data.error || '处理失败', 'danger');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('处理失败', 'danger');
+        }
+    });
+}
+
+function fixAbnormalSales(action) {
+    const ids = getSelectedIds('Abnormal');
+    if (ids.length === 0) {
+        showToast('请先选择要处理的记录', 'danger');
+        return;
+    }
+    const actionText = action === 'normalize' ? '修正为均值' : '删除记录';
+    showModal('确认操作', `确定要对选中的 ${ids.length} 条异常销量记录执行「${actionText}」吗？`, async () => {
+        try {
+            const res = await fetch('/api/admin/data_quality/fix/abnormal_sales', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ids, action})
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`已成功处理 ${data.fixed_count} 条记录`, 'success');
+                runScan();
+            } else {
+                showToast(data.error || '处理失败', 'danger');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('处理失败', 'danger');
+        }
+    });
+}
+
+function fixMissingPiles() {
+    const provinces = getSelectedProvinces();
+    if (provinces.length === 0) {
+        showToast('请先选择要补全的省份', 'danger');
+        return;
+    }
+    showModal('确认操作', `确定要为选中的 ${provinces.length} 个省份补全充电桩密度数据吗？`, async () => {
+        try {
+            const res = await fetch('/api/admin/data_quality/fix/missing_piles', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({provinces})
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`已成功补全 ${data.fixed_count} 个省份的数据`, 'success');
+                runScan();
+            } else {
+                showToast(data.error || '处理失败', 'danger');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('处理失败', 'danger');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    runScan();
+});
+</script>
+{% endblock %}

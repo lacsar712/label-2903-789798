@@ -19,6 +19,7 @@
             <a href="{{ url_for('main.alert_center') }}">异动订阅</a>
             {% if current_user.role == 'admin' %}
             <a href="{{ url_for('main.admin_data') }}">数据管理</a>
+            <a href="{{ url_for('main.data_quality') }}">数据质量</a>
             <a href="{{ url_for('main.admin_users') }}">用户管理</a>
             <a href="{{ url_for('main.admin_reviews') }}">口碑审核</a>
             <a href="{{ url_for('main.quarterly_report') }}">季度报告</a>

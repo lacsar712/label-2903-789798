@@ -1448,3 +1448,229 @@ def review_approval(review_id):
         'status': 'ok',
         'message': f'已{"通过" if action == "approve" else "驳回"}该评价'
     })
+
+# ============ Data Quality Monitoring ============
+
+@bp.route("/admin/data_quality")
+@login_required
+def data_quality():
+    if current_user.role != 'admin':
+        return redirect(url_for('main.home'))
+    return render_template('data_quality.html')
+
+CHINA_PROVINCES = [
+    '北京市', '天津市', '河北省', '山西省', '内蒙古自治区', '辽宁省', '吉林省', '黑龙江省',
+    '上海市', '江苏省', '浙江省', '安徽省', '福建省', '江西省', '山东省',
+    '湖北省', '湖南省', '广东省', '广西壮族自治区', '海南省', '重庆市',
+    '四川省', '贵州省', '云南省', '西藏自治区', '陕西省', '甘肃省',
+    '青海省', '宁夏回族自治区', '新疆维吾尔自治区', '香港特别行政区', '澳门特别行政区', '台湾省'
+]
+
+@bp.route("/api/admin/data_quality/scan", methods=['GET'])
+@login_required
+def scan_data_quality():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+
+    issues = {
+        'orphan_models': [],
+        'abnormal_sales': [],
+        'missing_piles': [],
+        'duplicate_models': []
+    }
+
+    # 1. 孤立无销量挂靠的车型
+    orphan_cars = db.session.query(CarModel).filter(
+        ~CarModel.id.notin_(
+            db.session.query(SalesData.car_model_id).distinct()
+        )
+    ).all()
+    issues['orphan_models'] = [{
+        'id': c.id, 'brand': c.brand, 'model_name': c.model_name,
+        'price': c.price, 'category': c.category, 'range_km': c.range_km
+    } for c in orphan_cars]
+
+    # 2. 销量异常记录 (quantity <= 0 或偏离均值3倍标准差
+    all_sales = SalesData.query.all()
+    if all_sales:
+        quantities = [s.quantity for s in all_sales if s.quantity > 0]
+        if quantities:
+            import statistics
+            try:
+                mean_q = statistics.mean(quantities)
+                std_q = statistics.stdev(quantities) if len(quantities) > 1 else 0
+                threshold_upper = mean_q + 3 * std_q if std_q > 0 else float('inf')
+            except statistics.StatisticsError:
+                mean_q = 0
+                threshold_upper = float('inf')
+        else:
+            mean_q = 0
+            threshold_upper = float('inf')
+
+        for s in all_sales:
+            abnormal = False
+            reason = []
+            if s.quantity <= 0:
+                abnormal = True
+                reason.append('销量≤0')
+            if s.quantity > threshold_upper and std_q > 0:
+                    abnormal = True
+                    reason.append(f'销量远超均值(>均值3倍标准差')
+            if abnormal:
+                issues['abnormal_sales'].append({
+                    'id': s.id,
+                    'car_id': s.car_model_id,
+                    'brand': s.car_model.brand,
+                    'model_name': s.car_model.model_name,
+                    'region': s.region,
+                    'period': s.period,
+                    'quantity': s.quantity,
+                    'reasons': reason
+                })
+
+    # 3. 充电桩密度空缺省份
+    latest_period = db.session.query(func.max(ChargingPile.period)).scalar()
+    if latest_period:
+        piles_in_latest = ChargingPile.query.filter_by(period=latest_period).all()
+        existing_provinces = {p.province for p in piles_in_latest}
+    else:
+        all_piles = ChargingPile.query.all()
+        existing_provinces = {p.province for p in all_piles}
+        latest_period = 'latest'
+
+    for prov in CHINA_PROVINCES:
+        if prov not in existing_provinces:
+            issues['missing_piles'].append({
+                'province': prov,
+                'latest_period': latest_period
+            })
+
+    # 4. 重复品牌车型组合
+    dup_query = db.session.query(
+        CarModel.brand, CarModel.model_name
+    ).group_by(CarModel.brand, CarModel.model_name
+    ).having(func.count(CarModel.id) > 1).all()
+
+    for brand, model_name in dup_query:
+        dup_cars = CarModel.query.filter_by(brand=brand, model_name=model_name).order_by(CarModel.id).all()
+        issues['duplicate_models'].append({
+            'brand': brand,
+            'model_name': model_name,
+            'count': len(dup_cars),
+            'instances': [{
+                'id': c.id, 'price': c.price, 'range_km': c.range_km,
+                'power_consumption': c.power_consumption, 'weight_kg': c.weight_kg,
+                'category': c.category
+            } for c in dup_cars]
+        })
+
+    return jsonify({
+            'issues': issues,
+            'summary': {
+                'orphan_models': len(issues['orphan_models']),
+                'abnormal_sales': len(issues['abnormal_sales']),
+                'missing_piles': len(issues['missing_piles']),
+                'duplicate_models': len(issues['duplicate_models']),
+            'total_issues': len(issues['orphan_models']) + len(issues['abnormal_sales']) + len(issues['missing_piles']) + len(issues['duplicate_models'])
+            },
+            'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+
+@bp.route("/api/admin/data_quality/fix/orphan_models", methods=['POST'])
+@login_required
+def fix_orphan_models():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+
+    data = request.json
+    car_ids = data.get('ids', [])
+    action = data.get('action', 'generate_sales')
+    fixed_count = 0
+
+    for cid in car_ids:
+        car = CarModel.query.get(cid)
+        if not car:
+            continue
+        if action == 'generate_sales':
+            regions = ['北京市', '上海市', '广东省', '浙江省']
+            periods = db.session.query(SalesData.period).distinct().all()
+            period_list = [p[0] for p in periods] if periods else ['2024 Q1']
+            for r in regions:
+                for p in period_list:
+                    sale = SalesData(
+                        car_model_id=car.id, region=r, period=p,
+                        quantity=random.randint(100, 1000))
+                    db.session.add(sale)
+            fixed_count += 1
+        elif action == 'delete':
+            db.session.delete(car)
+            fixed_count += 1
+
+    db.session.commit()
+    return jsonify({
+        'status': 'ok',
+        'fixed_count': fixed_count,
+        'action': action
+    })
+
+@bp.route("/api/admin/data_quality/fix/abnormal_sales", methods=['POST'])
+@login_required
+def fix_abnormal_sales():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+    data = request.json
+    sale_ids = data.get('ids', [])
+    action = data.get('action', 'normalize')
+    fixed_count = 0
+
+    for sid in sale_ids:
+        sale = SalesData.query.get(sid)
+        if not sale:
+            continue
+        if action == 'normalize':
+            avg_q = db.session.query(func.avg(SalesData.quantity)).filter(
+                SalesData.car_model_id == sale.car_model_id,
+                SalesData.quantity > 0
+            ).scalar() or 500
+            sale.quantity = max(100, int(avg_q if avg_q else 500))
+            fixed_count += 1
+        elif action == 'delete':
+            db.session.delete(sale)
+            fixed_count += 1
+
+    db.session.commit()
+    return jsonify({
+        'status': 'ok',
+        'fixed_count': fixed_count,
+        'action': action
+    })
+
+@bp.route("/api/admin/data_quality/fix/missing_piles", methods=['POST'])
+@login_required
+def fix_missing_piles():
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+
+    data = request.json
+    provinces = data.get('provinces', [])
+    fixed_count = 0
+
+    latest_period = db.session.query(func.max(ChargingPile.period)).scalar()
+    target_period = latest_period or 'latest'
+
+    for prov in provinces:
+        exists = ChargingPile.query.filter_by(province=prov, period=target_period).first()
+        if not exists:
+            pile = ChargingPile(
+                province=prov,
+                density=round(random.uniform(5.0, 50.0), 1),
+                period=target_period
+            )
+            db.session.add(pile)
+            fixed_count += 1
+
+    db.session.commit()
+    return jsonify({
+        'status': 'ok',
+        'fixed_count': fixed_count
+    })
