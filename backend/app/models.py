@@ -98,4 +98,16 @@ class SystemConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     config_key = db.Column(db.String(50), unique=True, nullable=False)
     config_value = db.Column(db.Text, nullable=False)
-    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+class LoginLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    ip_address = db.Column(db.String(50), nullable=False)
+    user_agent = db.Column(db.String(500))
+    login_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    is_new_location = db.Column(db.Boolean, nullable=False, default=False)
+    session_token = db.Column(db.String(100))
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    
+    user = db.relationship('User', backref=db.backref('login_logs', lazy=True))

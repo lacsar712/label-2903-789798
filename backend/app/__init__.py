@@ -121,6 +121,29 @@ def create_app():
             except Exception as e:
                 print("Migration notice (system_config):", e)
         
+        # Migration: Create login_log table if it doesn't exist
+        try:
+            from sqlalchemy import text
+            db.session.execute(text('SELECT id FROM login_log LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE login_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        ip_address VARCHAR(50) NOT NULL,
+                        user_agent VARCHAR(500),
+                        login_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        is_new_location BOOLEAN NOT NULL DEFAULT 0,
+                        session_token VARCHAR(100),
+                        is_active BOOLEAN NOT NULL DEFAULT 1,
+                        FOREIGN KEY (user_id) REFERENCES user (id)
+                    )
+                """))
+                db.session.commit()
+            except Exception as e:
+                print("Migration notice (login_log):", e)
+        
         # Initialize default system config
         default_configs = {
             'site_title': '新能源汽车数据分析系统',

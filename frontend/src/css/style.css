@@ -4285,3 +4285,315 @@ input:hover {
         justify-content: center;
     }
 }
+
+/* ============ Login Security Center ============ */
+
+.security-alert-banner {
+    display: none;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 12px;
+    animation: slideInDown 0.4s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideOutUp {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+.security-alert-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(245, 158, 11, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f59e0b;
+    font-size: 22px;
+}
+
+.security-alert-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.security-alert-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fbbf24;
+    margin-bottom: 6px;
+}
+
+.security-alert-desc {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.security-alert-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.sec-alert-confirm-btn {
+    padding: 8px 18px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sec-alert-confirm-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.sec-alert-close-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sec-alert-close-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.security-alert-close-x {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.security-alert-close-x:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Settings Page Layout */
+.settings-page {
+    padding: 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.settings-header {
+    margin-bottom: 28px;
+}
+
+.settings-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.settings-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 960px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.settings-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.settings-card-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.settings-card-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Login History Table */
+.login-history-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.login-history-table thead {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.login-history-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.login-history-table tbody tr {
+    transition: background 0.15s;
+}
+
+.login-history-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.login-history-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-primary);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.status-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-badge-active {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.status-badge-active::before {
+    background: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+}
+
+.status-badge-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.status-badge-warning::before {
+    background: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b;
+}
+
+.status-badge-inactive {
+    background: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+}
+
+.status-badge-inactive::before {
+    background: #9ca3af;
+}
+
+/* Admin Modal Login Logs */
+.terminate-btn {
+    padding: 6px 14px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.terminate-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.terminate-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.view-logs-btn {
+    padding: 6px 14px;
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-logs-btn:hover {
+    background: rgba(139, 92, 246, 0.25);
+    border-color: rgba(139, 92, 246, 0.5);
+    transform: translateY(-1px);
+}

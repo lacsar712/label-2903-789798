@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 {% block title %}控制面板{% endblock %}
 {% block content %}
+{% if new_login_warning %}
+<div id="securityAlertBanner" class="security-alert-banner">
+    <div class="security-alert-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+    </div>
+    <div class="security-alert-content">
+        <strong data-i18n="sec_alert_title">安全提醒</strong>
+        <span data-i18n="sec_alert_desc_prefix">检测到您的账号从一个陌生地址登录，请确认是否为您本人操作。登录IP：</span>
+        <span id="secAlertIp" class="security-alert-ip">-</span>
+        <span data-i18n="sec_alert_desc_suffix">，登录时间：</span>
+        <span id="secAlertTime" class="security-alert-time">-</span>
+    </div>
+    <div class="security-alert-actions">
+        <button class="security-alert-btn security-alert-btn-ok" onclick="acknowledgeSecurityAlert()" data-i18n="sec_alert_confirm">确认是本人操作</button>
+        <button class="security-alert-btn security-alert-btn-close" onclick="closeSecurityAlert()">×</button>
+    </div>
+</div>
+{% endif %}
 <div class="preset-manager" id="tour-preset-manager">
     <div class="preset-header">
         <span class="preset-title">

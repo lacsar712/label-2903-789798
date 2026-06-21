@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, url_for, flash, redirect, request, jsonify
 from app import db, bcrypt
-from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset, AlertRule, AlertNotification, CarReview, SystemConfig
+from app.models import User, CarModel, SalesData, ChargingPile, FilterPreset, AlertRule, AlertNotification, CarReview, SystemConfig, LoginLog
 from flask_login import login_user, current_user, logout_user, login_required
 from sqlalchemy import func, or_, text
 import random
 import json
+import uuid
 from datetime import datetime
 
 bp = Blueprint('main', __name__)
@@ -12,7 +13,13 @@ bp = Blueprint('main', __name__)
 @bp.route("/")
 @login_required
 def home():
-    return render_template('index.html')
+    new_login_warning = request.args.get('new_login', '0') == '1'
+    return render_template('index.html', new_login_warning=new_login_warning)
+
+def get_client_ip():
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    return request.remote_addr or 'unknown'
 
 @bp.route("/login", methods=['GET', 'POST'])
 def login():
@@ -23,7 +30,29 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         if user and bcrypt.check_password_hash(user.password, password):
+            ip_address = get_client_ip()
+            user_agent = request.headers.get('User-Agent', '')[:500]
+            session_token = str(uuid.uuid4())
+            
+            existing_ips = db.session.query(LoginLog.ip_address).filter_by(user_id=user.id).distinct().all()
+            existing_ip_set = {ip[0] for ip in existing_ips}
+            is_new_location = ip_address not in existing_ip_set and len(existing_ip_set) > 0
+            
+            login_log = LoginLog(
+                user_id=user.id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                is_new_location=is_new_location,
+                session_token=session_token,
+                is_active=True
+            )
+            db.session.add(login_log)
+            db.session.commit()
+            
             login_user(user)
+            
+            if is_new_location:
+                return redirect(url_for('main.home', new_login=1))
             return redirect(url_for('main.home'))
         else:
             flash('登录失败，请检查用户名或密码', 'danger')
@@ -403,6 +432,74 @@ def mark_tour_seen():
         current_user.has_seen_tour = True
         db.session.commit()
     return jsonify({'status': 'ok', 'has_seen_tour': current_user.has_seen_tour})
+
+# ============ Login Security Center ============
+
+@bp.route("/api/user/login_logs", methods=['GET'])
+@login_required
+def get_my_login_logs():
+    logs = LoginLog.query.filter_by(user_id=current_user.id).order_by(LoginLog.login_at.desc()).limit(20).all()
+    return jsonify([{
+        'id': log.id,
+        'ip_address': log.ip_address,
+        'user_agent': log.user_agent or '',
+        'login_at': log.login_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'is_new_location': log.is_new_location,
+        'is_active': log.is_active
+    } for log in logs])
+
+@bp.route("/api/user/latest_security_alert", methods=['GET'])
+@login_required
+def get_latest_security_alert():
+    latest_log = LoginLog.query.filter_by(user_id=current_user.id).order_by(LoginLog.login_at.desc()).first()
+    if latest_log and latest_log.is_new_location and latest_log.is_active:
+        return jsonify({
+            'has_alert': True,
+            'ip_address': latest_log.ip_address,
+            'login_at': latest_log.login_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'log_id': latest_log.id
+        })
+    return jsonify({'has_alert': False})
+
+@bp.route("/api/user/login_logs/<int:log_id>/acknowledge", methods=['POST'])
+@login_required
+def acknowledge_login_log(log_id):
+    log = LoginLog.query.get_or_404(log_id)
+    if log.user_id != current_user.id:
+        return jsonify({'error': '无权限操作'}), 403
+    log.is_active = False
+    db.session.commit()
+    return jsonify({'status': 'ok'})
+
+@bp.route("/api/admin/users/<int:user_id>/login_logs", methods=['GET'])
+@login_required
+def get_user_login_logs(user_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+    user = User.query.get_or_404(user_id)
+    logs = LoginLog.query.filter_by(user_id=user_id).order_by(LoginLog.login_at.desc()).limit(50).all()
+    return jsonify({
+        'username': user.username,
+        'logs': [{
+            'id': log.id,
+            'ip_address': log.ip_address,
+            'user_agent': log.user_agent or '',
+            'login_at': log.login_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'is_new_location': log.is_new_location,
+            'is_active': log.is_active,
+            'session_token': log.session_token
+        } for log in logs]
+    })
+
+@bp.route("/api/admin/login_logs/<int:log_id>/terminate", methods=['POST'])
+@login_required
+def terminate_login_session(log_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': '无权限'}), 403
+    log = LoginLog.query.get_or_404(log_id)
+    log.is_active = False
+    db.session.commit()
+    return jsonify({'status': 'ok', 'message': '会话已强制终止'})
 
 # --- Filter Preset APIs ---
 

@@ -585,7 +585,38 @@ const I18N_TRANSLATIONS = {
         report_summary_down: '下滑',
         report_summary_rank23_prefix: '第 2-3 名分别为 ',
         report_summary_rank23_mid: ' 与 ',
-        report_summary_rank23_suffix: '。'
+        report_summary_rank23_suffix: '。',
+
+        sec_alert_title: '安全提醒',
+        sec_alert_desc_prefix: '检测到您的账号从一个陌生地址登录，请确认是否为您本人操作。登录IP：',
+        sec_alert_desc_suffix: '，登录时间：',
+        sec_alert_confirm: '确认是本人操作',
+
+        settings_personal_title: '个人设置',
+        settings_personal_subtitle: '管理您的账号安全和登录信息',
+
+        login_history_title: '登录足迹',
+        login_history_subtitle: '最近 20 次登录记录',
+        login_history_col_time: '登录时间',
+        login_history_col_ip: 'IP地址',
+        login_history_col_device: '设备/浏览器',
+        login_history_col_status: '状态',
+        login_history_loading: '加载中...',
+        login_history_empty: '暂无登录记录',
+        login_history_load_failed: '加载失败',
+        login_history_status_active: '会话活跃',
+        login_history_status_ended: '会话已结束',
+        login_history_status_new: '陌生地址',
+
+        adminusers_btn_view_logs: '登录轨迹',
+        admin_login_logs_title: '用户登录轨迹',
+        admin_login_logs_col_action: '操作',
+        admin_login_logs_btn_terminate: '强制终止',
+        admin_login_logs_ended: '已结束',
+        admin_terminate_confirm_title: '确认终止会话',
+        admin_terminate_confirm_msg: '确定要强制终止该用户的登录会话吗？此操作将立即失效该会话。',
+        admin_terminate_success: '会话已强制终止',
+        admin_terminate_failed: '操作失败'
     },
     'en-US': {
         nav_dashboard: 'Dashboard',
@@ -1172,7 +1203,38 @@ const I18N_TRANSLATIONS = {
         report_summary_down: 'down',
         report_summary_rank23_prefix: '#2-3 are ',
         report_summary_rank23_mid: ' and ',
-        report_summary_rank23_suffix: '.'
+        report_summary_rank23_suffix: '.',
+
+        sec_alert_title: 'Security Alert',
+        sec_alert_desc_prefix: 'We detected a login from an unfamiliar location. Please confirm this was you. Login IP: ',
+        sec_alert_desc_suffix: ', Login time: ',
+        sec_alert_confirm: 'Confirm it was me',
+
+        settings_personal_title: 'Personal Settings',
+        settings_personal_subtitle: 'Manage your account security and login information',
+
+        login_history_title: 'Login History',
+        login_history_subtitle: 'Last 20 login records',
+        login_history_col_time: 'Login Time',
+        login_history_col_ip: 'IP Address',
+        login_history_col_device: 'Device / Browser',
+        login_history_col_status: 'Status',
+        login_history_loading: 'Loading...',
+        login_history_empty: 'No login records',
+        login_history_load_failed: 'Failed to load',
+        login_history_status_active: 'Active Session',
+        login_history_status_ended: 'Session Ended',
+        login_history_status_new: 'New Location',
+
+        adminusers_btn_view_logs: 'Login Logs',
+        admin_login_logs_title: 'User Login History',
+        admin_login_logs_col_action: 'Action',
+        admin_login_logs_btn_terminate: 'Terminate',
+        admin_login_logs_ended: 'Ended',
+        admin_terminate_confirm_title: 'Confirm Terminate Session',
+        admin_terminate_confirm_msg: 'Are you sure you want to force terminate this user\'s login session? This will immediately invalidate the session.',
+        admin_terminate_success: 'Session terminated successfully',
+        admin_terminate_failed: 'Operation failed'
     }
 };
 
@@ -2792,6 +2854,132 @@ document.addEventListener('keydown', (e) => {
         if (sidebar && sidebar.classList.contains('open')) {
             closeCarSidebar();
         }
+    }
+});
+
+// ============ Login Security Center ============
+
+function parseUserAgent(ua) {
+    if (!ua) return 'Unknown';
+    
+    let browser = 'Unknown';
+    let os = 'Unknown';
+    
+    if (/Edg\//i.test(ua)) browser = 'Edge';
+    else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = 'Chrome';
+    else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+    else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
+    else if (/Opera\//i.test(ua) || /OPR\//i.test(ua)) browser = 'Opera';
+    
+    if (/Windows NT 10/i.test(ua)) os = 'Windows 10/11';
+    else if (/Windows NT 6/i.test(ua)) os = 'Windows 7/8';
+    else if (/Mac OS X/i.test(ua)) os = 'macOS';
+    else if (/Android/i.test(ua)) os = 'Android';
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+    
+    return `${os} · ${browser}`;
+}
+
+async function loadLoginHistory() {
+    const tbody = document.getElementById('loginHistoryBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-secondary);">${t('login_history_loading')}</td></tr>`;
+    
+    try {
+        const res = await fetch('/api/user/login_logs');
+        if (!res.ok) throw new Error('Failed to load');
+        const logs = await res.json();
+        
+        if (!logs || logs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-secondary);">${t('login_history_empty')}</td></tr>`;
+            return;
+        }
+        
+        tbody.innerHTML = logs.map(log => {
+            const uaText = parseUserAgent(log.user_agent);
+            let statusBadge = '';
+            if (log.is_new_location) {
+                statusBadge = `<span class="status-badge status-badge-warning">${t('login_history_status_new')}</span>`;
+            } else if (log.is_active) {
+                statusBadge = `<span class="status-badge status-badge-active">${t('login_history_status_active')}</span>`;
+            } else {
+                statusBadge = `<span class="status-badge status-badge-inactive">${t('login_history_status_ended')}</span>`;
+            }
+            
+            return `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                    <td style="padding: 12px 16px; font-size: 13px; font-family: monospace;">${log.login_at}</td>
+                    <td style="padding: 12px 16px; font-size: 13px; font-family: monospace;">${log.ip_address}</td>
+                    <td style="padding: 12px 16px; font-size: 12px; color: var(--text-secondary);">${uaText}</td>
+                    <td style="padding: 12px 16px;">${statusBadge}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-secondary);">${t('login_history_load_failed')}</td></tr>`;
+    }
+}
+
+let currentSecurityAlertLogId = null;
+
+async function initSecurityAlert() {
+    const banner = document.getElementById('securityAlertBanner');
+    if (!banner) return;
+    
+    try {
+        const res = await fetch('/api/user/latest_security_alert');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.has_alert) {
+            currentSecurityAlertLogId = data.log_id;
+            const ipEl = document.getElementById('secAlertIp');
+            const timeEl = document.getElementById('secAlertTime');
+            if (ipEl) ipEl.textContent = data.ip_address;
+            if (timeEl) timeEl.textContent = data.login_at;
+            banner.style.display = 'flex';
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
+function closeSecurityAlert() {
+    const banner = document.getElementById('securityAlertBanner');
+    if (banner) {
+        banner.style.animation = 'slideOutUp 0.3s ease-out forwards';
+        setTimeout(() => {
+            banner.style.display = 'none';
+        }, 300);
+    }
+}
+
+async function acknowledgeSecurityAlert() {
+    if (!currentSecurityAlertLogId) {
+        closeSecurityAlert();
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/user/login_logs/${currentSecurityAlertLogId}/acknowledge`, {
+            method: 'POST'
+        });
+        if (res.ok) {
+            showToast(t('sec_alert_confirm'), 'success');
+        }
+    } catch (e) {
+        // ignore
+    }
+    
+    closeSecurityAlert();
+}
+
+// Auto-init security alert on dashboard
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('securityAlertBanner')) {
+        initSecurityAlert();
     }
 });
 
