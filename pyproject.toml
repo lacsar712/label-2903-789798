@@ -1,0 +1,35 @@
+[tool.black]
+line-length = 120
+target-version = ["py39"]
+skip-string-normalization = true
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | migrations
+)/
+'''
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "E501", "W503"]
+exclude = [".git", "__pycache__", "migrations", ".venv"]
+max-complexity = 12
+
+[tool.isort]
+profile = "black"
+line_length = 120
+known_first_party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[project]
+name = "nev-data-platform"
+version = "1.0.0"
+description = "New Energy Vehicle Data Analysis Platform"
+requires-python = ">=3.9"
