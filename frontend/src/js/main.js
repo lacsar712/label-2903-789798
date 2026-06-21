@@ -1251,8 +1251,8 @@ function setLanguage(lang) {
     localStorage.setItem('app_language', lang);
     applyTranslations();
     document.documentElement.lang = lang === 'zh-CN' ? 'zh-CN' : 'en';
-    if (typeof refreshCharts === 'function' && document.getElementById('barChart')) {
-        refreshCharts();
+    if (typeof ChartLoader !== 'undefined' && ChartLoader.isInitialized()) {
+        ChartLoader.refreshCharts();
     }
     if (typeof loadRankingData === 'function') {
         loadRankingData();
@@ -1331,22 +1331,11 @@ const echartsTheme = {
     textStyle: { color: '#94a3b8' }
 };
 
-const MAP_COLOR_SCHEMES = {
-    cool: ['#1e293b', '#38bdf8', '#818cf8', '#a78bfa'],
-    warm: ['#1e293b', '#fbbf24', '#f97316', '#ef4444']
-};
-
-let charts = {};
 let currentSelection = {
     brand: '',
     city: '北京',
     drillDown: false
 };
-
-function getMapColors() {
-    const scheme = (window.systemConfig && window.systemConfig.mapColorScheme) || 'cool';
-    return MAP_COLOR_SCHEMES[scheme] || MAP_COLOR_SCHEMES.cool;
-}
 
 function getInitialCity() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1360,184 +1349,6 @@ function getInitialCity() {
         return window.systemConfig.defaultCity;
     }
     return '北京';
-}
-
-function initCharts() {
-    const ids = ['barChart', 'pieChart', 'lineChart', 'scatterChart', 'mapChart'];
-    ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) charts[id] = echarts.init(el);
-    });
-
-    // Interaction Events
-    if (charts.barChart) {
-        charts.barChart.on('click', function (params) {
-            // Drill down: If brand filter is empty, and user clicks a model, 
-            // maybe we extract the brand or just set the brand filter to that specific brand.
-            // Simplified: Filter everything by this brand
-            const brandSelect = document.getElementById('brandFilter');
-            // Check if name is a brand or a specific model. 
-            // In our current API, labels are model names. We might need brand info.
-            // For this version: just toast and filter by brand if it matches known brands.
-            const brands = ['特斯拉', '比亚迪', '蔚来', '小鹏'];
-            if (brands.includes(params.name)) {
-                brandSelect.value = params.name;
-                refreshCharts();
-            } else {
-                // It's a model name. We can find the brand? 
-                // Let's assume user wants to filter by this specific selection.
-            }
-        });
-    }
-
-    if (charts.pieChart) {
-        charts.pieChart.on('click', function (params) {
-            document.getElementById('brandFilter').value = params.name;
-            refreshCharts();
-            showToast(t('toast_brand_filtered').replace('{name}', params.name), 'info');
-        });
-    }
-}
-
-function getFilterParams() {
-    const brand = document.getElementById('brandFilter').value;
-    const city = document.getElementById('cityFilter').value;
-    const pMin = document.getElementById('priceMin').value;
-    const pMax = document.getElementById('priceMax').value;
-    const rMin = document.getElementById('rangeMin').value;
-
-    const categories = Array.from(document.querySelectorAll('.cat-filter:checked')).map(cb => cb.value);
-
-    const sortField = document.getElementById('sortField').value;
-    const sortOrder = document.getElementById('sortOrder').value;
-
-    let url = `?brand=${brand}&city=${city}&price_min=${pMin}&price_max=${pMax}&range_min=${rMin}&sort_field=${sortField}&sort_order=${sortOrder}`;
-    categories.forEach(c => url += `&category[]=${c}`);
-    return url;
-}
-
-async function loadLineChart() {
-    const brand = document.getElementById('brandFilter').value;
-    const res = await fetch(`/api/chart/line?brand=${brand}`);
-    const data = await res.json();
-
-    charts.lineChart.setOption({
-        title: { text: brand ? `${brand} ${t('chart_line_title_brand')}` : t('chart_line_title_total'), textStyle: { color: '#94a3b8', fontSize: 14 } },
-        tooltip: { trigger: 'axis' },
-        xAxis: { type: 'category', data: data.periods, boundaryGap: false },
-        yAxis: { type: 'value', splitLine: { lineStyle: { color: '#334155' } } },
-        series: [{
-            name: t('chart_line_series_name'),
-            data: data.sales,
-            type: 'line',
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 8,
-            lineStyle: { width: 4, color: '#38bdf8' },
-            areaStyle: {
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                    { offset: 0, color: 'rgba(56, 189, 248, 0.4)' },
-                    { offset: 1, color: 'rgba(56, 189, 248, 0)' }
-                ])
-            }
-        }]
-    }, true);
-}
-
-async function loadPieChart() {
-    const city = document.getElementById('cityFilter').value;
-    const res = await fetch(`/api/chart/pie?city=${city}`);
-    const data = await res.json();
-
-    charts.pieChart.setOption({
-        title: { text: `${city} ${t('chart_pie_title')}`, left: 'center', textStyle: { color: '#94a3b8', fontSize: 14 } },
-        tooltip: { trigger: 'item' },
-        series: [{
-            type: 'pie',
-            radius: ['40%', '70%'],
-            avoidLabelOverlap: false,
-            itemStyle: { borderRadius: 10, borderColor: '#1e293b', borderWidth: 2 },
-            label: { show: false },
-            emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold', color: '#fff' } },
-            data: data
-        }]
-    });
-}
-
-async function loadScatterChart() {
-    const params = getFilterParams();
-    const res = await fetch(`/api/chart/scatter${params}`);
-    const data = await res.json();
-
-    charts.scatterChart.setOption({
-        title: { text: t('chart_scatter_title'), textStyle: { color: '#94a3b8', fontSize: 14 } },
-        tooltip: {
-            formatter: params => `${params.data[2]}<br/>${t('chart_scatter_tooltip_weight')}: ${params.data[0]}kg<br/>${t('chart_scatter_tooltip_power')}: ${params.data[1]}kWh/100km`
-        },
-        xAxis: { name: t('chart_scatter_xaxis'), splitLine: { lineStyle: { color: '#334155' } } },
-        yAxis: { name: t('chart_scatter_yaxis'), splitLine: { lineStyle: { color: '#334155' } } },
-        series: [{
-            symbolSize: (data) => Math.sqrt(data[0]) / 2,
-            data: data.weight_power,
-            type: 'scatter',
-            itemStyle: { color: '#f472b6', shadowBlur: 10, shadowColor: 'rgba(244, 114, 182, 0.5)' }
-        }]
-    });
-}
-let mapGeoCache = null;
-
-async function loadMapChart() {
-    const mapMode = document.getElementById('mapMode').value;
-    const params = getFilterParams();
-    const res = await fetch(`/api/chart/map${params}&mode=${mapMode}`);
-    const data = await res.json();
-
-    const mapUrl = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
-
-    try {
-        if (!mapGeoCache) {
-            const mapRes = await fetch(mapUrl);
-            mapGeoCache = await mapRes.json();
-            echarts.registerMap('china', mapGeoCache);
-        }
-
-        const vals = data.data.map(d => d.value).filter(v => v > 0);
-        const maxVal = vals.length > 0 ? Math.max(...vals) : (mapMode === 'density' ? 50 : 20000);
-
-        const mapColors = getMapColors();
-        charts.mapChart.setOption({
-            title: { text: data.title + ` (${t('chart_map_zoomable')})`, textStyle: { color: '#94a3b8', fontSize: 14 } },
-            visualMap: {
-                min: 0, max: maxVal > 0 ? maxVal : 100, left: 'right', top: 'bottom', text: [t('chart_map_visual_high'), t('chart_map_visual_low')],
-                calculable: true, inRange: { color: mapColors },
-                textStyle: { color: '#94a3b8' }
-            },
-            tooltip: {
-                trigger: 'item',
-                formatter: function (params) {
-                    const val = params.value ? params.value : 0;
-                    const unit = mapMode === 'density' ? t('chart_map_tooltip_unit_density') : t('chart_map_tooltip_unit_sales');
-                    return `${params.name}<br/>${mapMode === 'density' ? t('chart_map_tooltip_density') : t('chart_map_tooltip_sales')}: ${val} ${unit}`;
-                }
-            },
-            series: [{
-                name: mapMode === 'density' ? t('chart_map_tooltip_density') : t('chart_map_tooltip_sales'), type: 'map', mapType: 'china', roam: true,
-                emphasis: { label: { color: '#fff' }, itemStyle: { areaColor: '#a78bfa' } },
-                data: data.data
-            }]
-        });
-    } catch (e) {
-        console.error('Map loading failed:', e);
-        showToast(t('toast_map_load_failed'), 'danger');
-    }
-}
-
-function refreshCharts() {
-    loadBarChart();
-    loadLineChart();
-    loadPieChart();
-    loadScatterChart();
-    loadMapChart();
 }
 
 function initCityFilter() {
@@ -1555,14 +1366,12 @@ function saveCityPreference(city) {
     }
 }
 
-// Add event listeners for automatic refreshing
 window.addEventListener('load', () => {
-    initCharts();
-    if (charts.barChart) {
+    ChartLoader.initCharts();
+    if (ChartLoader.isInitialized()) {
         initCityFilter();
-        refreshCharts();
+        ChartLoader.refreshCharts();
 
-        // Auto-refresh when dropdowns change
         const autoFilters = ['brandFilter', 'cityFilter', 'sortField', 'sortOrder', 'mapMode'];
         autoFilters.forEach(id => {
             const el = document.getElementById(id);
@@ -1572,27 +1381,29 @@ window.addEventListener('load', () => {
                         saveCityPreference(this.value);
                         currentSelection.city = this.value;
                     }
-                    refreshCharts();
+                    ChartLoader.refreshCharts();
                 };
             }
         });
 
-        // Auto-refresh for checkboxes
         document.querySelectorAll('.cat-filter').forEach(cb => {
-            cb.onchange = refreshCharts;
+            cb.onchange = ChartLoader.refreshCharts;
         });
 
-        // Debounced refresh for number inputs
         let debounceTimer;
         const numInputs = ['priceMin', 'priceMax', 'rangeMin'];
         numInputs.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.oninput = () => {
                 clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(refreshCharts, 500);
+                debounceTimer = setTimeout(ChartLoader.refreshCharts, 500);
             };
         });
     }
+});
+
+window.addEventListener('resize', () => {
+    ChartLoader.resizeAll();
 });
 
 // Custom UI Components
@@ -1632,20 +1443,11 @@ function initDB() {
             .then(r => r.json())
             .then(d => {
                 showToast(d.status, 'success');
-                refreshCharts();
+                ChartLoader.refreshCharts();
             })
             .catch(() => showToast(t('toast_initdb_failed'), 'danger'));
     });
 }
-
-window.addEventListener('load', () => {
-    initCharts();
-    if (charts.barChart) refreshCharts();
-});
-
-window.addEventListener('resize', () => {
-    Object.values(charts).forEach(c => c.resize());
-});
 
 // ============ URL Parameter Handling for Review Board Navigation ============
 
@@ -1676,7 +1478,7 @@ function applyUrlParamsOnLoad() {
     }
     
     setTimeout(() => {
-        refreshCharts();
+        ChartLoader.refreshCharts();
         
         if (model) {
             setTimeout(() => {
@@ -2006,7 +1808,7 @@ function applyFilters(filters) {
         if (cb) cb.checked = filters.categories ? filters.categories.includes(cat) : true;
     });
 
-    refreshCharts();
+    ChartLoader.refreshCharts();
 }
 
 async function loadPresetList() {
@@ -2575,39 +2377,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let currentSelectedCar = null;
 let currentRating = 0;
-
-async function loadBarChart() {
-    const params = getFilterParams();
-    const res = await fetch(`/api/chart/bar${params}`);
-    const data = await res.json();
-
-    const brand = document.getElementById('brandFilter').value;
-
-    const tbody = document.getElementById('dashboardTableBody');
-    if (tbody) {
-        tbody.innerHTML = data.models.map((m, i) => `
-            <tr onclick="openCarSidebar(${data.model_ids[i]}, '${m}', '${data.brands[i]}', ${data.range[i]}, ${data.price[i]}, ${data.power[i]})" style="cursor: pointer;">
-                <td style="color: #fff; font-weight: 500;">${m}</td>
-                <td>${data.range[i]} km</td>
-                <td>${data.price[i]} ${t('table_price_unit')}</td>
-                <td>${data.power[i]}</td>
-            </tr>
-        `).join('');
-    }
-
-    charts.barChart.setOption({
-        tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#fff' } },
-        legend: { data: [t('chart_bar_legend_range'), t('chart_bar_legend_price'), t('chart_bar_legend_power')], textStyle: { color: '#94a3b8' }, top: 'bottom' },
-        xAxis: { type: 'category', data: data.models, axisLabel: { color: '#94a3b8', interval: 0, rotate: 30 } },
-        yAxis: { splitLine: { lineStyle: { color: '#334155' } } },
-        grid: { bottom: '20%' },
-        series: [
-            { name: t('chart_bar_legend_range'), type: 'bar', data: data.range, itemStyle: { borderRadius: [4, 4, 0, 0] } },
-            { name: t('chart_bar_legend_price'), type: 'bar', data: data.price, itemStyle: { borderRadius: [4, 4, 0, 0] } },
-            { name: t('chart_bar_legend_power'), type: 'bar', data: data.power, itemStyle: { borderRadius: [4, 4, 0, 0] } }
-        ]
-    });
-}
 
 function openCarSidebar(carId, modelName, brand, range, price, power) {
     currentSelectedCar = {

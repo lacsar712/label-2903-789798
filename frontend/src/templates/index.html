@@ -191,7 +191,7 @@
             <option value="density" data-i18n="filter_map_density">充电桩密度</option>
         </select>
     </div>
-    <button onclick="refreshCharts()" class="btn" data-i18n="filter_btn_load">加载数据</button>
+    <button onclick="ChartLoader.refreshCharts()" class="btn" data-i18n="filter_btn_load">加载数据</button>
     {% if current_user.role == 'admin' %}
     <button onclick="initDB()" class="btn btn-danger" style="margin-left: auto;" data-i18n="filter_btn_reset_db">重置模拟数据</button>
     {% endif %}
